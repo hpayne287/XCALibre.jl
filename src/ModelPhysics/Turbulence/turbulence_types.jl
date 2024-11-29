@@ -34,3 +34,15 @@ Abstract LES model type for constructing LES models.
 struct LES{T,ARG} <:AbstractModelContainer 
     args::ARG
 end
+
+"""
+    DES <: AbstractLESModel
+
+Abstract DES model type for constructing DES models.
+
+### Fields
+- 'args' -- Model arguments.
+"""
+struct DES{T,ARG} <:AbstractModelContainer 
+    args::ARG
+end
