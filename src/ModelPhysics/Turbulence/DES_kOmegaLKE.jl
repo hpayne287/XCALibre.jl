@@ -33,6 +33,3 @@ struct DESKOmegaLKEModel{
 end 
 Adapt.@adapt_structure DESKOmegaLKEModel
 
-function initialise(
-    
-)
