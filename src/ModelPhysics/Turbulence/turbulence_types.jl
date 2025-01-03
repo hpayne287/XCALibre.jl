@@ -36,7 +36,7 @@ struct LES{T,ARG} <:AbstractModelContainer
 end
 
 """
-    DES <: AbstractLESModel
+    DES <: AbstractDESModel
 
 Abstract DES model type for constructing DES models.
 
