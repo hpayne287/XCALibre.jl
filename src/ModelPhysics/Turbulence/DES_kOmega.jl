@@ -1,4 +1,4 @@
-struct DESKOmega{S1,S2,S3,F1,F2,F3,C,C2,Y} <: AbstractDESModel
+struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C,C2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
@@ -9,15 +9,15 @@ struct DESKOmega{S1,S2,S3,F1,F2,F3,C,C2,Y} <: AbstractDESModel
     Tu::C2
     y::Y
 end
-Adapt.@adapt_structure DESKOmega
+Adapt.@adapt_structure KωSmagorinsky
 
-struct DESKOmegaModel{E1,E2,D,S}
+struct KωSmagorinskyModel{E1,E2,D,S}
     k_eqn::E1 
     ω_eqn::E2
     Δ::D 
     magS::S
 end 
-Adapt.@adapt_structure DESKOmegaModel
+Adapt.@adapt_structure KωSmagorinskyModel
 
 #Model API Constructor 
 DES{KωSmagorinsky}(; β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15) = begin
@@ -92,7 +92,7 @@ function initialise(
 
     delta!(Δ,mesh,config)
     @. Δ.values = Δ.values^2 
-    return DESKOmegaModel(k_eqn,ω_eqn,Δ,magS)
+    return KωSmagorinskyModel(k_eqn,ω_eqn,Δ,magS)
 end
 #Specialise VTK writer
 function model2vtk(model::Physics{T,F,M,Tu,E,D,BI},VTKWriter,name
