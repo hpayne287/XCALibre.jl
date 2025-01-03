@@ -2,11 +2,13 @@ export AbstractModelContainer
 export AbstractTurbulenceModel
 export AbstractRANSModel, RANS
 export AbstractLESModel, LES
+export AbstractDESModel, DES
 
 abstract type AbstractModelContainer end
 abstract type AbstractTurbulenceModel end
 abstract type AbstractRANSModel <: AbstractTurbulenceModel end
 abstract type AbstractLESModel <: AbstractTurbulenceModel end
+abstract type AbstractDESModel <: AbstractTurbulenceModel end
 
 Base.show(io::IO, model::AbstractTurbulenceModel) = print(io, typeof(model).name.wrapper)
 
