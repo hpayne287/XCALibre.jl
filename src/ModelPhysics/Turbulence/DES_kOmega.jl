@@ -1,3 +1,5 @@
+export KωSmagorinsky
+
 struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C,C2,Y} <: AbstractDESModel
     k::S1
     omega::S2
