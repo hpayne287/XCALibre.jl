@@ -3,7 +3,7 @@ export Operator, Source, Src
 export Time, Laplacian, Divergence, Si
 export Model, ScalarEquation, VectorEquation, ModelEquation, ScalarModel, VectorModel
 export nzval_index
-export spindex
+export spindex, spindex_csc
 
 # ABSTRACT TYPES 
 
@@ -100,8 +100,11 @@ end
 
 # Linear system matrix equation
 
-_build_A(backend::CPU, i, j, v, n) = sparsecsr(i, j, v, n, n)
-_build_opA(A::SparseMatricesCSR.SparseMatrixCSR) = LinearOperator(A)
+# _build_A(backend::CPU, i, j, v, n) = sparsecsr(i, j, v, n, n)
+# _build_opA(A::SparseMatricesCSR.SparseMatrixCSR) = LinearOperator(A)
+
+_build_A(backend::CPU, i, j, v, n) = SparseXCSR(sparsecsr(i, j, v, n, n))
+_build_opA(A::SparseXCSR) = A
 
 ## ORIGINAL STRUCTURE PARAMETERISED FOR GPU
 struct ScalarEquation{VTf<:AbstractVector, ASA<:AbstractSparseArray, OP} <: AbstractEquation
@@ -204,6 +207,21 @@ function spindex(rowptr::AbstractArray{T}, colval, i, j) where T
     ind = zero(T)
     for nzi in start_ind:end_ind
         if colval[nzi] == j
+            ind = nzi
+            break
+        end
+    end
+    return ind
+end
+
+# Sparse CSC format
+function spindex_csc(colptr::AbstractArray{T}, rowval, i, j) where T
+    start_ind = colptr[j]
+    end_ind = colptr[j+1] - one(T)
+
+    ind = zero(T)
+    for nzi in start_ind:end_ind
+        if rowval[nzi] == i
             ind = nzi
             break
         end
