@@ -28,6 +28,10 @@ include("RANS_kOmegaLKE.jl")
 include("LES_functions.jl")
 include("LES_Smagorinsky.jl")
 
+# DES models
+include("DES_Functions.jl")
+include("DES_kOmega.jl")
+
 export initialise, turbulence!, save_output
 
 # end # end module
