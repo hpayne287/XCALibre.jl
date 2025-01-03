@@ -38,6 +38,62 @@ end
     KωSmagorinsky(k,omega,nut,kf,omegaf,nutf,coeffs)
 end
 
+function initialise(
+    turbulence::KωSmagorinsky, model::Physics{T,F,M,Tu,E,D,BI},mdotf,peqn,config
+    ) where {T,F,M,Tu,E,D,BI}
+
+    (; solvers, schemes,runtime) = config
+    mesh = model.domain
+    (; k, omega, nut) = turbulence
+    (; rho) = model.fluid
+    eqn = peqn.equation
+
+    # define fluxes and sources
+    mueffk = FaceScalarField(mesh)
+    mueffω = FaceScalarField(mesh)
+    Dkf = ScalarField(mesh)
+    Dωf = ScalarField(mesh)
+    Pk = ScalarField(mesh)
+    Pω = ScalarField(mesh)
+    
+    k_eqn = (
+            Time{schemes.k.time}(rho, k)
+            + Divergence{schemes.k.divergence}(mdotf, k) 
+            - Laplacian{schemes.k.laplacian}(mueffk, k) 
+            + Si(Dkf,k) # Dkf = β⁺rho*omega
+            ==
+            Source(Pk)
+        ) → eqn
+    
+    ω_eqn = (
+            Time{schemes.omega.time}(rho, omega)
+            + Divergence{schemes.omega.divergence}(mdotf, omega) 
+            - Laplacian{schemes.omega.laplacian}(mueffω, omega) 
+            + Si(Dωf,omega)  # Dωf = rho*β1*omega
+            ==
+            Source(Pω)
+    ) → eqn
+
+    # Set up preconditioners
+    @reset k_eqn.preconditioner = set_preconditioner(
+                solvers.k.preconditioner, k_eqn, k.BCs, config)
+
+    # @reset ω_eqn.preconditioner = set_preconditioner(
+    #             solvers.omega.preconditioner, ω_eqn, omega.BCs, config)
+
+    @reset ω_eqn.preconditioner = k_eqn.preconditioner
+    
+    # preallocating solvers
+    @reset k_eqn.solver = solvers.k.solver(_A(k_eqn), _b(k_eqn))
+    @reset ω_eqn.solver = solvers.omega.solver(_A(ω_eqn), _b(ω_eqn))
+
+    magS = ScalarField(mesh)
+    Δ = ScalarField(mesh)
+
+    delta!(Δ,mesh,config)
+    @. Δ.values = Δ.values^2 
+    return DESKOmegaModel(k_eqn,ω_eqn,Δ,magS)
+end
 #Specialise VTK writer
 function model2vtk(model::Physics{T,F,M,Tu,E,D,BI},VTKWriter,name
     ) where {T,F,M,Tu<:KωSmagorinsky,E,D,BI}
