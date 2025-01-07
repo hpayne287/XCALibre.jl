@@ -1,5 +1,4 @@
 export KωSmagorinsky
-export testFunction
 
 struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C,C2,Y} <: AbstractDESModel
     k::S1
@@ -22,9 +21,6 @@ struct KωSmagorinskyModel{E1,E2,D,S}
 end 
 Adapt.@adapt_structure KωSmagorinskyModel
 
-function testFunction(a)
-    return a
-end
 
 #Model API Constructor 
 DES{KωSmagorinsky}(; β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15) = begin
