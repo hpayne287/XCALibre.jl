@@ -1,6 +1,6 @@
 export KωSmagorinsky
 
-struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C,C2,Y} <: AbstractDESModel
+struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
@@ -8,8 +8,6 @@ struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C,C2,Y} <: AbstractDESModel
     omegaf::F2
     nutf::F3
     coeffs::C
-    Tu::C2
-    y::Y
 end
 Adapt.@adapt_structure KωSmagorinsky
 
@@ -97,6 +95,12 @@ function initialise(
     @. Δ.values = Δ.values^2 
     return KωSmagorinskyModel(k_eqn,ω_eqn,Δ,magS)
 end
+
+function turbulence!(des::KωSmagorinskyModel, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, limit_gradient, config
+    ) where {T,F,M,Tu<:KωSmagorinsky,E,D,BI,E1,E2}
+
+end
+
 #Specialise VTK writer
 function model2vtk(model::Physics{T,F,M,Tu,E,D,BI},VTKWriter,name
     ) where {T,F,M,Tu<:KωSmagorinsky,E,D,BI}
