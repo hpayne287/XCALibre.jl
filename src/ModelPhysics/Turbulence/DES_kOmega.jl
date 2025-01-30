@@ -1,31 +1,36 @@
 export KωSmagorinsky
 
-struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C} <: AbstractDESModel
-    k::S1
-    omega::S2
-    nut::S3
-    kf::F1
-    omegaf::F2
-    nutf::F3
-    coeffs::C
+# struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C} <: AbstractDESModel
+    struct KωSmagorinsky <: AbstractDESModel
+    k
+    omega
+    nut
+    kf
+    omegaf
+    nutf
+    coeffs
 end
 Adapt.@adapt_structure KωSmagorinsky
 
-struct KωSmagorinskyModel{E1,E2,D,S}
-    k_eqn::E1 
-    ω_eqn::E2
-    Δ::D 
-    magS::S
-end 
-Adapt.@adapt_structure KωSmagorinskyModel
+# struct KωSmagorinskyModel{E1,E2,D,S}
+#     k_eqn::E1 
+#     ω_eqn::E2
+#     Δ::D 
+#     magS::S
+# end 
+# Adapt.@adapt_structure KωSmagorinskyModel
 
 
 #Model API Constructor 
-DES{KωSmagorinsky}(; β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15) = begin
-    coeffs = (β⁺=β⁺, α1=α1, β1=β1, σk=σk, σω=σω, C=C)
-    ARG = typeof(coeffs)
-    DES{KωSmagorinsky,ARG}(coeffs)
-end
+# DES{KωSmagorinsky}(; β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15) = begin
+#     DES{KωSmagorinsky}() = begin
+#     coeffs = (β⁺=β⁺, α1=α1, β1=β1, σk=σk, σω=σω, C=C)
+#     ARG = typeof(coeffs)
+#     DES{KωSmagorinsky,ARG}(coeffs)
+#     return 8
+# end
+# DES{KωSmagorinsky}() = DES{KωSmagorinsky,NamedTuple{(:β⁺, :α1, :β1, :σk, :σω, :C),Tuple{Float64,Float64,Float64,Float64,Float64,Float64}}}((β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15))
+DES{KωSmagorinsky}() = DES{KωSmagorinsky}()
 
 # Function as constructor
 (rans::DES{KωSmagorinsky,ARG})(mesh) where ARG = begin
@@ -101,26 +106,26 @@ function turbulence!(des::KωSmagorinskyModel, model::Physics{T,F,M,Tu,E,D,BI}, 
 
 end
 
-#Specialise VTK writer
-function model2vtk(model::Physics{T,F,M,Tu,E,D,BI},VTKWriter,name
-    ) where {T,F,M,Tu<:KωSmagorinsky,E,D,BI}
-    if typeof(model.fluid)<:AbstractCompressible
-        args = (
-            ("U", model.momentum.U), 
-            ("p", model.momentum.p),
-            ("T", model.energy.T),
-            ("k", model.turbulence.k),
-            ("omega", model.turbulence.omega),
-            ("nut", model.turbulence.nut)
-        )
-    else
-        args = (
-            ("U", model.momentum.U), 
-            ("p", model.momentum.p),
-            ("k", model.turbulence.k),
-            ("omega", model.turbulence.omega),
-            ("nut", model.turbulence.nut)
-        )
-    end
-    write_vtk(name, model.domain, VTKWriter, args...)
-end
+# #Specialise VTK writer
+# function model2vtk(model::Physics{T,F,M,Tu,E,D,BI},VTKWriter,name
+#     ) where {T,F,M,Tu<:KωSmagorinsky,E,D,BI}
+#     if typeof(model.fluid)<:AbstractCompressible
+#         args = (
+#             ("U", model.momentum.U), 
+#             ("p", model.momentum.p),
+#             ("T", model.energy.T),
+#             ("k", model.turbulence.k),
+#             ("omega", model.turbulence.omega),
+#             ("nut", model.turbulence.nut)
+#         )
+#     else
+#         args = (
+#             ("U", model.momentum.U), 
+#             ("p", model.momentum.p),
+#             ("k", model.turbulence.k),
+#             ("omega", model.turbulence.omega),
+#             ("nut", model.turbulence.nut)
+#         )
+#     end
+#     write_vtk(name, model.domain, VTKWriter, args...)
+# end
