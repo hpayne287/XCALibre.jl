@@ -1,14 +1,13 @@
 export KωSmagorinsky
 
-# struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C} <: AbstractDESModel
-    struct KωSmagorinsky <: AbstractDESModel
-    k
-    omega
-    nut
-    kf
-    omegaf
-    nutf
-    coeffs
+struct KωSmagorinsky{S1,S2,S3,F1,F2,F3,C} <: AbstractDESModel
+    k::S1
+    omega::S2
+    nut::S3
+    kf::F1
+    omegaf::F2
+    nutf::F3
+    coeffs::C
 end
 Adapt.@adapt_structure KωSmagorinsky
 
@@ -22,17 +21,10 @@ Adapt.@adapt_structure KωSmagorinskyModel
 
 
 #Model API Constructor 
-# DES{KωSmagorinsky}(; β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15) = begin
-#     DES{KωSmagorinsky}() = begin
-#     coeffs = (β⁺=β⁺, α1=α1, β1=β1, σk=σk, σω=σω, C=C)
-#     ARG = typeof(coeffs)
-#     DES{KωSmagorinsky,ARG}(coeffs)
-#     return 8
-# end
-DES{T}() = begin
+DES{KωSmagorinsky}() = begin
     coeffs = (β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15)
     ARG = typeof(coeffs)
-    DES{T,ARG}(coeffs)
+    DES{KωSmagorinsky,ARG}(coeffs)
 end 
 
 
