@@ -45,6 +45,13 @@ Abstract DES model type for constructing DES models.
 ### Fields
 - 'args' -- Model arguments.
 """
-struct DES{T,ARG} <:AbstractModelContainer 
+# struct DES{T,ARG} <:AbstractModelContainer 
+#     args::ARG
+# end
+
+struct DES{KωSmagorinsky, ARG} <: AbstractModelContainer
+    rans
+    les
     args::ARG
+    # DES{RANS, LES, ARG}(rans::RANS, les::LES, args::ARG) where {RANS, LES, ARG} = new{RANS, LES, ARG}(rans, les, args)
 end
