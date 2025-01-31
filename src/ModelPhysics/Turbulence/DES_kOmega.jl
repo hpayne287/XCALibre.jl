@@ -12,13 +12,13 @@ export KωSmagorinsky
 end
 Adapt.@adapt_structure KωSmagorinsky
 
-# struct KωSmagorinskyModel{E1,E2,D,S}
-#     k_eqn::E1 
-#     ω_eqn::E2
-#     Δ::D 
-#     magS::S
-# end 
-# Adapt.@adapt_structure KωSmagorinskyModel
+struct KωSmagorinskyModel{E1,E2,D,S}
+    k_eqn::E1 
+    ω_eqn::E2
+    Δ::D 
+    magS::S
+end 
+Adapt.@adapt_structure KωSmagorinskyModel
 
 
 #Model API Constructor 
@@ -29,8 +29,12 @@ Adapt.@adapt_structure KωSmagorinsky
 #     DES{KωSmagorinsky,ARG}(coeffs)
 #     return 8
 # end
-# DES{KωSmagorinsky}() = DES{KωSmagorinsky,NamedTuple{(:β⁺, :α1, :β1, :σk, :σω, :C),Tuple{Float64,Float64,Float64,Float64,Float64,Float64}}}((β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15))
-DES{KωSmagorinsky}() = DES{KωSmagorinsky}()
+DES{T}() = begin
+    coeffs = (β⁺=0.09, α1=0.52, β1=0.072, σk=0.5, σω=0.5, C=0.15)
+    ARG = typeof(coeffs)
+    DES{T,ARG}(coeffs)
+end 
+
 
 # Function as constructor
 (rans::DES{KωSmagorinsky,ARG})(mesh) where ARG = begin
