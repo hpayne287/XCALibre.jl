@@ -1,6 +1,16 @@
+#I am yet to test the functionality of these functions but am ever hopeful this is right :)
+
+function compute_RANS_lengthscale(rans,mesh)
+    (; k, omega) = rans
+    L_RANS= sqrt.(k.values) ./ (omega.values .+ eps())
+    return L_RANS
+end
+
+
 function compute_DES_lengthscale(rans, les, mesh, C_DES=0.65)
     L_RANS = compute_RANS_lengthscale(rans, mesh)
-    Δ = compute_LES_grid_spacing(les, mesh)
+    Δ = ScalarField(mesh)
+    delta!(Δ, mesh,les.config)
     return min.(L_RANS, C_DES * Δ)  
 end
 
