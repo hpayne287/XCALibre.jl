@@ -18,7 +18,7 @@ Re = velocity[1]*0.1/nu
 model = Physics(
     time = Transient(),
     fluid = Fluid{Incompressible}(nu = nu),
-    turbulence = DES{KωSmagorinsky}(),
+    turbulence = DES{KωSmagorinsky}(nu, mesh_dev),
     energy = Energy{Isothermal}(),
     domain = mesh_dev
     )
