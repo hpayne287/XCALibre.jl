@@ -49,9 +49,10 @@ Abstract DES model type for constructing DES models.
 #     args::ARG
 # end
 
-struct DES{T, ARG} <: AbstractModelContainer
+mutable struct DES{T, ARG} <: AbstractModelContainer
     rans
     les
     args::ARG
     # DES{RANS, LES, ARG}(rans::RANS, les::LES, args::ARG) where {RANS, LES, ARG} = new{RANS, LES, ARG}(rans, les, args)
 end
+Adapt.@adapt_structure DES
