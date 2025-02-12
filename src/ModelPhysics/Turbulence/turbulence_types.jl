@@ -49,7 +49,7 @@ Abstract DES model type for constructing DES models.
 #     args::ARG
 # end
 
-struct DES{KωSmagorinsky, ARG} <: AbstractModelContainer
+struct DES{T, ARG} <: AbstractModelContainer
     rans
     les
     args::ARG
