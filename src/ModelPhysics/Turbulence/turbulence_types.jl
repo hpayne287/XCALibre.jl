@@ -43,11 +43,10 @@ end
 Abstract DES model type for constructing DES models.
 
 ### Fields
+- 'rans' -- The RANS model (Physics struct)
+- 'les' -- The LES model (Physics struct)
 - 'args' -- Model arguments.
 """
-# struct DES{T,ARG} <:AbstractModelContainer 
-#     args::ARG
-# end
 
 mutable struct DES{T, ARG} <: AbstractModelContainer
     rans
