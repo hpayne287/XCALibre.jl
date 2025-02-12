@@ -32,9 +32,10 @@ DES{KωSmagorinsky}(nu, mesh_dev, v) = begin
         energy=Energy{Isothermal}(),
         domain=mesh_dev
     )
+    momentum = Momentum(mesh_dev)
     des_args = (C_DES=0.65, σk=0.5, σω=0.5, v=v) # DES coefficients
     ARG = typeof(des_args)
-    DES{KωSmagorinsky,ARG}(rans_model, les_model, des_args)
+    DES{KωSmagorinsky,ARG}(rans_model, les_model, des_args, momentum)
 end
 
 
