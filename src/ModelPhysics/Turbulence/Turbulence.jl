@@ -30,7 +30,7 @@ include("LES_Smagorinsky.jl")
 
 # DES models
 include("DES_Functions.jl")
-include("DES_kOmega.jl")
+include("DES_SST.jl")
 
 export initialise, turbulence!, save_output
 
