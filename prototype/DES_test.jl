@@ -22,7 +22,7 @@ k_inlet = 1
 model = Physics(
     time=Steady(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Menter}(RANSTurb=KOmega, LESTurb=Smagorinsky, mesh_dev, nu, walls=(:wall,)),
+    turbulence=DES{Menter}(mesh_dev, nu, walls=(:wall,)),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
