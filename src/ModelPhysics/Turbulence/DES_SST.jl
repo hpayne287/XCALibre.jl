@@ -16,7 +16,7 @@ Adapt.@adapt_structure Menter
 
 #Model Constructor using a RANS and LES model
 # Can be rewritten for K-ϵ model or another LES turbulence type
-DES{Menter}(RANSTurb,LESTurb,mesh_dev,nu,walls) = begin
+DES{Menter}(mesh_dev,nu;RANSTurb,LESTurb,walls) = begin
     # Construct RANS model
     rans = Physics(
         time=Transient(),
@@ -33,7 +33,6 @@ DES{Menter}(RANSTurb,LESTurb,mesh_dev,nu,walls) = begin
         energy=Energy{Isothermal}(),
         domain=mesh_dev
     )
-    momentum = Momentum(mesh_dev)
 # DES coefficients
     des_args = (
         C_DES=0.65, 
@@ -47,7 +46,7 @@ DES{Menter}(RANSTurb,LESTurb,mesh_dev,nu,walls) = begin
         a1=0.31,
         walls=walls) 
     ARG = typeof(des_args)
-    DES{Menter,ARG}(rans_model, les_model, des_args, momentum)
+    DES{Menter,ARG}(rans, les, des_args)
 end
 
 
@@ -59,6 +58,7 @@ end
     kf = FaceScalarField(mesh)
     omegaf = FaceScalarField(mesh)
     nutf = FaceScalarField(mesh)
+    momentum=Momentum(mesh)
     coeffs = des.args
     rans = des.rans
     les = des.les
@@ -109,7 +109,7 @@ end
 
 #Specialise VTK writer
 function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
-) where {T,F,M,Tu<:KωSmagorinsky,E,D,BI}
+) where {T,F,M,Tu<:Menter,E,D,BI}
     if typeof(model.fluid) <: AbstractCompressible
         args = (
             ("U", model.momentum.U),
