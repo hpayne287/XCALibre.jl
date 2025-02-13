@@ -51,7 +51,6 @@ Abstract DES model type for constructing DES models.
 mutable struct DES{T, ARG} <: AbstractModelContainer
     rans
     les
-    args::ARG
-    momentum  
+    args::ARG 
 end
 Adapt.@adapt_structure DES
