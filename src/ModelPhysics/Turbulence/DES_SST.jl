@@ -16,7 +16,8 @@ Adapt.@adapt_structure Menter
 
 #Model Constructor using a RANS and LES model
 # Can be rewritten for K-ϵ model or another LES turbulence type
-DES{Menter}(mesh_dev,nu;RANSTurb,LESTurb,walls) = begin
+DES{Menter}(mesh_dev,nu;RANSTurb=KOmega,LESTurb=Smagorinsky,walls,
+C_DES=0.65, σk1=0.85, σk2=1.00,σω1=0.65,σω2=0.856,β1=0.075,β2=0.0828,βstar=0.09,a1=0.31) = begin
     # Construct RANS model
     rans = Physics(
         time=Transient(),
@@ -35,15 +36,15 @@ DES{Menter}(mesh_dev,nu;RANSTurb,LESTurb,walls) = begin
     )
 # DES coefficients
     des_args = (
-        C_DES=0.65, 
-        σk1=0.85, 
-        σk2=1.00,
-        σω1=0.65,
-        σω2=0.856,
-        β1=0.075,
-        β2=0.0828,
-        βstar=0.09,
-        a1=0.31,
+        C_DES=C_DES, 
+        σk1=σk1, 
+        σk2=σk2,
+        σω1=σω1,
+        σω2=σω2,
+        β1=β1,
+        β2=β2,
+        βstar=βstar,
+        a1=a1,
         walls=walls) 
     ARG = typeof(des_args)
     DES{Menter,ARG}(rans, les, des_args)
