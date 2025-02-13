@@ -19,15 +19,14 @@ Re = velocity[1] * 0.1 / nu
 k_inlet = 1
 ω_inlet = 1000
 
-# model = Physics(
-#     time = Steady(),
-#     fluid = Fluid{Incompressible}(nu = nu),
-#     turbulence = DES{KωSmagorinsky}(nu,mesh_dev,velocity),
-#     energy = Energy{Isothermal}(),
-#     domain = mesh_dev
-#     )
+model = Physics(
+    time=Steady(),
+    fluid=Fluid{Incompressible}(nu=nu),
+    turbulence=DES{Menter}(RANSTurb=KOmega, LESTurb=Smagorinksy, mesh_dev, nu, walls=(:wall,)),
+    energy=Energy{Isothermal}(),
+    domain=mesh_dev
+)
 
-model  = DES{KωSmagorinsky}(nu,mesh_dev,velocity)
 
 #region Define RANS BC
 @assign! model.rans momentum U (
@@ -62,9 +61,9 @@ model  = DES{KωSmagorinsky}(nu,mesh_dev,velocity)
 )
 
 @assign! model.rans turbulence nut (
-    Dirichlet(:inlet, k_inlet/ω_inlet),
+    Dirichlet(:inlet, k_inlet / ω_inlet),
     Neumann(:outlet, 0.0),
-    NutWallFunction(:wall1), 
+    NutWallFunction(:wall1),
     NutWallFunction(:wall2),
     NutWallFunction(:wall3)
 )
@@ -109,8 +108,8 @@ model  = DES{KωSmagorinsky}(nu,mesh_dev,velocity)
 schemes = (
     U=set_schemes(divergence=Linear),
     p=set_schemes(),
-    k = set_schemes(gradient=Midpoint),
-    omega = set_schemes(gradient=Midpoint)
+    k=set_schemes(gradient=Midpoint),
+    omega=set_schemes(gradient=Midpoint)
 )
 
 solvers = (
