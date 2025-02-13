@@ -14,9 +14,20 @@ function compute_DES_lengthscale(rans, les, mesh, C_DES=0.65)
     return min.(L_RANS, C_DES * Δ)  
 end
 
-function compute_turbulent_viscosity(des::DES, model, mesh)
+function compute_velocity_gradient(momentum, mesh)
+    #need to ask about the grad! function becuase i have no idea how that works
+end
+
+
+function compute_strain_rate_tensor(momentum,mesh)
+    ∇U = compute_velocity_gradient(momentum,mesh)  
+    S = 0.5 * (∇U + ∇U')  
+    return S
+end
+
+function compute_turbulent_viscosity(des::DES, momentum, mesh)
     L_DES = compute_DES_lengthscale(des.rans, des.les, mesh)
-    S = compute_strain_rate_tensor(model)
+    S = compute_strain_rate_tensor(momentum,mesh)
 
     # Compute eddy viscosity ν_t
     ν_t = L_DES^2 * norm(S)
