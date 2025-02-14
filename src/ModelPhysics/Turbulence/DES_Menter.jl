@@ -78,16 +78,18 @@ end
         end
     end
     y = assign(y, BCs...)
-
-    KOmega()
-    Smagorinksy()
+    # ranscoeffs = des.rans.turbulence.coeffs
+    # lescoeffs = des.les.turbulence.coeff
+    # KOmega(k,omega,nut,kf,omegaf,nutf,ranscoeffs) #These are already made within the rans and les model no?
+    # Smagorinsky(nut,nutf,lescoeffs)
+    Menter(k,omega,nut,kf,omegaf,nutf,coeffs,rans,les,y)
 end
 
 function initialise(T::Menter, model::Physics, mdotf::FaceScalarField, peqn::ModelEquation, config)
 
     #This feels like the wrong way of storing access to the LES and RANS models but works for now
-    rans = T.rans_model
-    les = T.les_model
+    rans = T.rans
+    les = T.les
     velocity = T.args.v
     # Initialise RANS model 
     initialise!(rans.momentum.U, velocity) #Need to review what actually gets passed to the RANS and LES initialise methods
