@@ -1,9 +1,31 @@
 export Menter
 
-struct Menter{S1,S2,S3,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
+#Model type definition (hold fields)
+"""
+    Menter <: AbstractDESModel
+
+Menter model containing all Menter field parameters
+
+### Fields
+- 'k' -- Turbulent kinetic energy ScalarField.
+- 'omega' -- Specific dissipation rate ScalarField.
+- 'nut' -- Eddy viscosity ScalarField.
+- 'blnd_func1' -- Menter blending function ScalarField.
+- 'blnd_func2' -- Menter blending function ScalarField
+- 'kf' -- Turbulent kinetic energy FaceScalarField.
+- 'omegaf' -- Specific dissipation rate FaceScalarField.
+- 'nutf' -- Eddy viscosity FaceScalarField.
+- 'coeffs' -- Model coefficients.
+- 'rans' -- Stores the RANS model for blending.
+- 'les' -- Stores the LES model for blending.
+- 'y' -- Near-wall distance for model.
+"""
+struct Menter{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
+    blnd_func1::S4
+    blnd_func2::S5
     kf::F1
     omegaf::F2
     nutf::F3
@@ -56,6 +78,8 @@ end
     k = ScalarField(mesh)
     omega = ScalarField(mesh)
     nut = ScalarField(mesh)
+    blnd_func1 = ScalarField(mesh)
+    blnd_func2 = ScalarField(mesh)
     kf = FaceScalarField(mesh)
     omegaf = FaceScalarField(mesh)
     nutf = FaceScalarField(mesh)
@@ -82,7 +106,7 @@ end
     # lescoeffs = des.les.turbulence.coeff
     # KOmega(k,omega,nut,kf,omegaf,nutf,ranscoeffs) #These are already made within the rans and les model no?
     # Smagorinsky(nut,nutf,lescoeffs)
-    Menter(k,omega,nut,kf,omegaf,nutf,coeffs,rans,les,y)
+    Menter(k,omega,nut,blnd_func1,blnd_func2,kf,omegaf,nutf,coeffs,rans,les,y)
 end
 
 function initialise(T::Menter, model::Physics, mdotf::FaceScalarField, peqn::ModelEquation, config)
