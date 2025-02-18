@@ -1,4 +1,4 @@
-export Menter
+export MenterF1
 
 #Model type definition (hold fields)
 """
@@ -11,7 +11,6 @@ Menter model containing all Menter field parameters
 - 'omega' -- Specific dissipation rate ScalarField.
 - 'nut' -- Eddy viscosity ScalarField.
 - 'blnd_func1' -- Menter blending function ScalarField.
-- 'blnd_func2' -- Menter blending function ScalarField
 - 'kf' -- Turbulent kinetic energy FaceScalarField.
 - 'omegaf' -- Specific dissipation rate FaceScalarField.
 - 'nutf' -- Eddy viscosity FaceScalarField.
@@ -20,12 +19,11 @@ Menter model containing all Menter field parameters
 - 'les' -- Stores the LES model for blending.
 - 'y' -- Near-wall distance for model.
 """
-struct Menter{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
+struct MenterF1{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
-    blnd_func1::S4
-    blnd_func2::S5
+    blnd_func::S4
     kf::F1
     omegaf::F2
     nutf::F3
@@ -34,12 +32,23 @@ struct Menter{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     les::M2
     y::Y
 end
-Adapt.@adapt_structure Menter
+Adapt.@adapt_structure MenterF1
+
+struct MenterF1Model{E1,E2,E3,S1,V1,V2,State}
+    k_eqn::E1
+    ω_eqn::E2
+    F1_eqn::E3
+    nuts::S1
+    ∇k::V1
+    ∇ω::V2
+    state::State
+end
+Adapt.@adapt_structure MenterF1Model
 
 #Model Constructor using a RANS and LES model
 # Can be rewritten for K-ϵ model or another LES turbulence type
-DES{Menter}(mesh_dev,nu;RANSTurb=KOmega,LESTurb=Smagorinsky,walls,
-C_DES=0.65, σk1=0.85, σk2=1.00,σω1=0.65,σω2=0.856,β1=0.075,β2=0.0828,βstar=0.09,a1=0.31) = begin
+DES{MenterF1}(mesh_dev, nu; RANSTurb=KOmega, LESTurb=Smagorinsky, walls,
+    C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31) = begin
     # Construct RANS model
     rans = Physics(
         time=Transient(),
@@ -56,10 +65,10 @@ C_DES=0.65, σk1=0.85, σk2=1.00,σω1=0.65,σω2=0.856,β1=0.075,β2=0.0828,βs
         energy=Energy{Isothermal}(),
         domain=mesh_dev
     )
-# DES coefficients
+    # DES coefficients
     des_args = (
-        C_DES=C_DES, 
-        σk1=σk1, 
+        C_DES=C_DES,
+        σk1=σk1,
         σk2=σk2,
         σω1=σω1,
         σω2=σω2,
@@ -67,23 +76,22 @@ C_DES=0.65, σk1=0.85, σk2=1.00,σω1=0.65,σω2=0.856,β1=0.075,β2=0.0828,βs
         β2=β2,
         βstar=βstar,
         a1=a1,
-        walls=walls) 
+        walls=walls)
     ARG = typeof(des_args)
-    DES{Menter,ARG}(rans, les, des_args)
+    DES{MenterF1,ARG}(rans, les, des_args)
 end
 
 
 # Functor as constructor
-(des::DES{Menter,ARG})(mesh) where {ARG} = begin
+(des::DES{MenterF1,ARG})(mesh) where {ARG} = begin
     k = ScalarField(mesh)
     omega = ScalarField(mesh)
     nut = ScalarField(mesh)
-    blnd_func1 = ScalarField(mesh)
-    blnd_func2 = ScalarField(mesh)
+    blnd_func = ScalarField(mesh)
     kf = FaceScalarField(mesh)
     omegaf = FaceScalarField(mesh)
     nutf = FaceScalarField(mesh)
-    momentum=Momentum(mesh)
+    momentum = Momentum(mesh)
     coeffs = des.args
     rans = des.rans
     les = des.les
@@ -106,37 +114,66 @@ end
     # lescoeffs = des.les.turbulence.coeff
     # KOmega(k,omega,nut,kf,omegaf,nutf,ranscoeffs) #These are already made within the rans and les model no?
     # Smagorinsky(nut,nutf,lescoeffs)
-    Menter(k,omega,nut,blnd_func1,blnd_func2,kf,omegaf,nutf,coeffs,rans,les,y)
+    MenterF1(k, omega, nut, blnd_func, kf, omegaf, nutf, coeffs, rans, les, y)
 end
 
-function initialise(T::Menter, model::Physics, mdotf::FaceScalarField, peqn::ModelEquation, config)
+function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField, peqn::ModelEquation, config)
 
-    #This feels like the wrong way of storing access to the LES and RANS models but works for now
-    rans = T.rans
-    les = T.les
-    velocity = T.args.v
-    # Initialise RANS model 
-    initialise!(rans.momentum.U, velocity) #Need to review what actually gets passed to the RANS and LES initialise methods
+    (; k, omega, nut, y, kf, omegaf, βstar, σω2) = model.turbulence
+    (; solvers, schemes, runtime) = config
+    mesh = mdotf.mesh
+    eqn = peqn.equation
 
+    ∇k = Grad{schemes.k.gradient}(k)
+    ∇ω = Grad{schemes.p.gradient}(omega)
 
-    # Initialise LES model 
-    initialise(les.turbulence, les, mdotf, peqn, config)
+    k_eqn = (
+        Time{schemes.k.time}(k)
+        +
+        Divergence{schemes.k.divergence}(mdotf, k)
+        -
+        Laplacian{schemes.k.laplacian}(nueffk, k)
+        +
+        Si(Dkf, k) # Dkf = β⁺*omega
+        ==
+        Source(Pk)
+    ) → eqn
 
-    # Compute initial DES length scale
-    des_length_scale = compute_DES_lengthscale(rans, les, mesh)
+    ω_eqn = (
+        Time{schemes.omega.time}(omega)
+        +
+        Divergence{schemes.omega.divergence}(mdotf, omega)
+        -
+        Laplacian{schemes.omega.laplacian}(nueffω, omega)
+        +
+        Si(Dωf, omega)  # Dωf = β1*omega
+        ==
+        Source(Pω)
+        +
+        Source(dkdomegadx)
+    ) → eqn
 
-    # Store the length scale inside the DES model 
-    des.args = merge(des.args, (L_DES=des_length_scale,))
+    F1_eqn = (
+        tanh(min(max(sqrt(k) / (βstar * y), (500 * nut) / (y^2 * omega)), (4 * model.fluid.rho * σω2 * k) / (CDkw * y^2))^4)
+    ) → eqn
+
+    wall_distance!(model, config)
+
+    init_residuals = (:k, 1.0), (:omega, 1.0)
+    init_convergence = false
+    state = ModelState(init_residuals, init_convergence)
+
+    return MenterF1Model(k_eqn,ω_eqn,F1_eqn,nuts,∇k,∇ω,state)
+
 end
 
 function turbulence!(des::DES, model, mesh, config)
-    ν_t = compute_turbulent_viscosity(des, model, mesh)
-    apply_turbulence_model!(des, model, ν_t, config)
+
 end
 
 #Specialise VTK writer
 function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
-) where {T,F,M,Tu<:Menter,E,D,BI}
+) where {T,F,M,Tu<:MenterF1,E,D,BI}
     if typeof(model.fluid) <: AbstractCompressible
         args = (
             ("U", model.momentum.U),
