@@ -22,14 +22,14 @@ k_inlet = 1
 model = Physics(
     time=Steady(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{MenterF1}(mesh_dev, nu, walls=(:wall,)),
+    turbulence=DES{MenterF1}(walls=(:wall1,:wall2,:wall3)),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
 
 
-#region Define RANS BC
-@assign! model.rans momentum U (
+#region Define BC
+@assign! model momentum U (
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
     Wall(:wall2, [0.0, 0.0, 0.0]),
@@ -37,14 +37,14 @@ model = Physics(
     Wall(:wall3, [0.0, 0.0, 0.0]),
 )
 
-@assign! model.rans momentum p (
+@assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
     Neumann(:wall1, 0.0),
     Neumann(:wall2, 0.0),
     Neumann(:wall3, 0.0),
 )
-@assign! model.rans turbulence k (
+@assign! model turbulence k (
     Dirichlet(:inlet, k_inlet),
     Neumann(:outlet, 0.0),
     KWallFunction(:wall1),
@@ -52,7 +52,7 @@ model = Physics(
     KWallFunction(:wall3)
 )
 
-@assign! model.rans turbulence omega (
+@assign! model turbulence omega (
     Dirichlet(:inlet, ω_inlet),
     Neumann(:outlet, 0.0),
     OmegaWallFunction(:wall1),
@@ -60,56 +60,22 @@ model = Physics(
     OmegaWallFunction(:wall3)
 )
 
-@assign! model.rans turbulence nut (
+@assign! model turbulence nut (
     Dirichlet(:inlet, k_inlet / ω_inlet),
     Neumann(:outlet, 0.0),
     NutWallFunction(:wall1),
     NutWallFunction(:wall2),
     NutWallFunction(:wall3)
 )
-#endregion
 
-#region Define LES BC
-@assign! model.les momentum U (
-    Dirichlet(:inlet, velocity),
-    Neumann(:outlet, 0.0),
-    Wall(:wall2, [0.0, 0.0, 0.0]),
-    Wall(:wall1, [0.0, 0.0, 0.0]),
-    Wall(:wall3, [0.0, 0.0, 0.0]),
-)
-
-@assign! model.les momentum p (
-    Neumann(:inlet, 0.0),
-    Dirichlet(:outlet, 0.0),
-    Neumann(:wall1, 0.0),
-    Neumann(:wall2, 0.0),
-    Neumann(:wall3, 0.0),
-)
-#endregion
-
-#region Define DES BC
-@assign! model.momentum U (
-    Dirichlet(:inlet, velocity),
-    Neumann(:outlet, 0.0),
-    Wall(:wall2, [0.0, 0.0, 0.0]),
-    Wall(:wall1, [0.0, 0.0, 0.0]),
-    Wall(:wall3, [0.0, 0.0, 0.0]),
-)
-
-@assign! model.momentum p (
-    Neumann(:inlet, 0.0),
-    Dirichlet(:outlet, 0.0),
-    Neumann(:wall1, 0.0),
-    Neumann(:wall2, 0.0),
-    Neumann(:wall3, 0.0),
-)
 #endregion
 
 schemes = (
     U=set_schemes(divergence=Linear),
     p=set_schemes(),
     k=set_schemes(gradient=Midpoint),
-    omega=set_schemes(gradient=Midpoint)
+    omega=set_schemes(gradient=Midpoint),
+    y = set_schemes(gradient=Midpoint)
 )
 
 solvers = (
@@ -130,15 +96,42 @@ solvers = (
         relax=0.7,
         rtol=1e-4,
         atol=1e-10
+    ),
+    y = set_solver(
+        model.turbulence.y;
+        solver      = CgSolver, # BicgstabSolver, GmresSolver
+        preconditioner = Jacobi(),
+        convergence = 1e-8,
+        relax       = 0.9,
+        itmax = 2000
+    ),
+    k = set_solver(
+        model.turbulence.k;
+        solver      = BicgstabSolver, # BicgstabSolver, GmresSolver
+        preconditioner = Jacobi(),
+        convergence = 1e-8,
+        relax       = 0.3,
+        rtol = 1e-2,
+    ),
+    omega = set_solver(
+        model.turbulence.omega;
+        solver      = BicgstabSolver, # BicgstabSolver, GmresSolver
+        preconditioner = Jacobi(),
+        convergence = 1e-8,
+        relax       = 0.3,
+        rtol = 1e-2,
     )
 )
 
-runtime = set_runtime(iterations=1, time_step=1, write_interval=-1)
+runtime = set_runtime(iterations=100, time_step=1, write_interval=1)
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
 
-initialise!(model.rans.momentum.U, velocity) #problems are coming at the initialisation step, running the DES initialise then needs to initialise the RANS and LES but currently does not
-initialise!(model.rans.momentum.p, 0.0)
+initialise!(model.momentum.U, velocity) 
+initialise!(model.momentum.p, 0.0)
+initialise!(model.turbulence.k, k_inlet)
+initialise!(model.turbulence.omega, ω_inlet)
+initialise!(model.turbulence.nut, k_inlet/ω_inlet)
 
 residuals = run!(model, config);
