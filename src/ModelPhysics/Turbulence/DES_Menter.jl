@@ -172,16 +172,16 @@ function turbulence!(
 ) where {T,F,M,Tu<:MenterF1,E,D,BI}
 
     (; rho) = model.fluid
-    (; k, omega, nut, blnd_func, CDkw) = model.turbulence
+    (; k, omega, nut, blnd_func, kf, omegaf, CDkw, y) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
-    (; nueffω, Dωf, Pω) = des
+    (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
 
     turbulence!(ransTurbModel, model, S, prev, time, config)
     turbulence!(lesTurbModel, model, S, prev, time, config)
 
-    nutRANS = des.rans.nut
-    nutLES = des.les.nut
+    nutRANS = model.turbulence.rans.nut
+    nutLES = model.turbulence.les.nut
     nueffω = get_flux(ω_eqn, 3)
     Dωf = get_flux(ω_eqn, 4)
     Pω = get_source(ω_eqn, 1)
@@ -191,11 +191,11 @@ function turbulence!(
     grad!(∇k, kf, k, k.BCs, time, config)
     inner_product!(dkdomegadx, ∇k, ∇ω, config)
 
-    @. CDkw.values = max((2 * rho * σω2 * (1 / ω) * dkdomegadx.values), 10e-20)
+    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
     @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values),
      (500 * nut.values) / (y.values^2 * omega.values)),
-     (4 * rho * σω2 * k.values) / (CDkw.values * y.values^2))^4)
-    @. nut.values = (blnd_func.values * nutRANS.values) + ((1-blnd_func.values) * nutLES.values)
+     (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+    @. nut.values = (blnd_func.values * nutRANS.values) + ((1-blnd_func.values) * nutLES.values);
 end
 
 #Specialise VTK writer
