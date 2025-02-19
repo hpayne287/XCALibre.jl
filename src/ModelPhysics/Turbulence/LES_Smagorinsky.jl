@@ -15,7 +15,7 @@ Smagorinsky LES model containing all Smagorinksy field parameters.
 struct Smagorinsky{S1,S2,C} <: AbstractLESModel
     nut::S1
     nutf::S2
-    coeff::C
+    coeffs::C
 end
 Adapt.@adapt_structure Smagorinsky
 
@@ -28,17 +28,17 @@ Adapt.@adapt_structure SmagorinskyModel
 
 # Model API constructor (pass user input as keyword arguments and process as needed)
 LES{Smagorinsky}(; C=0.15) = begin 
-    coeff = (C=C,)
-    ARG = typeof(coeff)
-    LES{Smagorinsky,ARG}(coeff)
+    coeffs = (C=C,)
+    ARG = typeof(coeffs)
+    LES{Smagorinsky,ARG}(coeffs)
 end
 
 # Functor as constructor (internally called by Physics API): Returns fields and user data
 (rans::LES{Smagorinsky, ARG})(mesh) where ARG = begin
     nut = ScalarField(mesh)
     nutf = FaceScalarField(mesh)
-    coeff = rans.args
-    Smagorinsky(nut, nutf, coeff)
+    coeffs = rans.args
+    Smagorinsky(nut, nutf, coeffs)
 end
 
 # Model initialisation
@@ -96,11 +96,11 @@ Run turbulence model transport equations.
 """
 function turbulence!(
     les::SmagorinskyModel{E1,E2}, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
-    ) where {T,F,M,Tu<:Smagorinsky,E,D,BI,E1,E2}
+    ) where {T,F,M,Tu,E,D,BI,E1,E2}
 
     mesh = model.domain
     
-    (; nut, nutf, coeff) = model.turbulence
+    (; nut, nutf, coeffs) = model.turbulence
     (; U, Uf, gradU) = S
     (; Δ, magS) = les
 
@@ -110,7 +110,7 @@ function turbulence!(
     @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
 
     # update eddy viscosity 
-    @. nut.values = coeff.C*Δ.values*magS.values # careful: here Δ = Δ²
+    @. nut.values = coeffs.C*Δ.values*magS.values # careful: here Δ = Δ²
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
