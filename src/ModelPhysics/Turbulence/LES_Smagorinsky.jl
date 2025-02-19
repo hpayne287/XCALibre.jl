@@ -15,7 +15,7 @@ Smagorinsky LES model containing all Smagorinksy field parameters.
 struct Smagorinsky{S1,S2,C} <: AbstractLESModel
     nut::S1
     nutf::S2
-    coeffs::C #I know there is only one coefficient for LES but this makes the DES implementation easier
+    coeffs::C
 end
 Adapt.@adapt_structure Smagorinsky
 
