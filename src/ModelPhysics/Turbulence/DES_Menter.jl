@@ -2,7 +2,7 @@ export MenterF1
 
 #Model type definition (hold fields)
 """
-    Menter <: AbstractDESModel
+    MenterF1 <: AbstractDESModel
 
 Menter model containing all Menter field parameters
 
@@ -11,6 +11,7 @@ Menter model containing all Menter field parameters
 - 'omega' -- Specific dissipation rate ScalarField.
 - 'nut' -- Eddy viscosity ScalarField.
 - 'blnd_func' -- Menter blending function ScalarField.
+- 'CDkw' -- Blending variable ScalarField
 - 'kf' -- Turbulent kinetic energy FaceScalarField.
 - 'omegaf' -- Specific dissipation rate FaceScalarField.
 - 'nutf' -- Eddy viscosity FaceScalarField.
