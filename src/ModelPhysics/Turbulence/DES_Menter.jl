@@ -172,16 +172,17 @@ function turbulence!(
 ) where {T,F,M,Tu<:MenterF1,E,D,BI}
 
     (; rho) = model.fluid
-    (; k, omega, nut, blnd_func, kf, omegaf, CDkw, y) = model.turbulence
+    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
     (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
 
-    turbulence!(ransTurbModel, model, S, prev, time, config)
-    turbulence!(lesTurbModel, model, S, prev, time, config)
+    turbulence!(ransTurbModel, rans, model, S, prev, time, config)
 
-    nutRANS = model.turbulence.rans.nut
-    nutLES = model.turbulence.les.nut
+    turbulence!(lesTurbModel, les, model, S, prev, time, config)
+
+    nutRANS = rans.nut
+    nutLES = les.nut
     nueffω = get_flux(ω_eqn, 3)
     Dωf = get_flux(ω_eqn, 4)
     Pω = get_source(ω_eqn, 1)
@@ -192,10 +193,16 @@ function turbulence!(
     inner_product!(dkdomegadx, ∇k, ∇ω, config)
 
     @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
-    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values),
+    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
      (500 * nut.values) / (y.values^2 * omega.values)),
      (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+
     @. nut.values = (blnd_func.values * nutRANS.values) + ((1-blnd_func.values) * nutLES.values);
+
+    interpolate!(nutf, nut, config)
+    correct_boundaries!(nutf, nut, nut.BCs, time, config)
+    correct_eddy_viscosity!(nutf, nut.BCs, model, config)
+
 end
 
 #Specialise VTK writer
@@ -216,7 +223,11 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
             ("p", model.momentum.p),
             ("k", model.turbulence.k),
             ("omega", model.turbulence.omega),
-            ("nut", model.turbulence.nut)
+            ("nut", model.turbulence.nut),
+            ("y",model.turbulence.y),
+            ("F1",model.turbulence.blnd_func),
+            ("ransnut", model.turbulence.rans.nut),
+            ("lesnut", model.turbulence.les.nut)
         )
     end
     write_vtk(name, model.domain, VTKWriter, args...)
