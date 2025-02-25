@@ -28,7 +28,7 @@ end
 Adapt.@adapt_structure SmagorinskyModel
 
 # Model API constructor (pass user input as keyword arguments and process as needed)
-LES{Smagorinsky}(; C=0.15) = begin 
+LES{Smagorinsky}(; C=0.15) = begin
     coeffs = (C=C,)
     ARG = typeof(coeffs)
     LES{Smagorinsky,ARG}(coeffs)
@@ -68,11 +68,11 @@ Initialisation of turbulent transport equations.
 """
 function initialise(
     turbulence::Smagorinsky, model::Physics{T,F,M,Tu,E,D,BI}, mdotf, peqn, config
-    ) where {T,F,M,Tu,E,D,BI}
+) where {T,F,M,Tu,E,D,BI}
 
     (; solvers, schemes, runtime) = config
     mesh = model.domain
-    
+
     magS = ScalarField(mesh)
     Δ = ScalarField(mesh)
 
@@ -121,7 +121,31 @@ function turbulence!(
     @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
 
     # update eddy viscosity 
-    @. nut.values = coeffs.C*Δ.values*magS.values # careful: here Δ = Δ²
+    @. nut.values = coeffs.C * Δ.values * magS.values # careful: here Δ = Δ²
+
+    interpolate!(nutf, nut, config)
+    correct_boundaries!(nutf, nut, nut.BCs, time, config)
+    correct_eddy_viscosity!(nutf, nut.BCs, model, config)
+end
+
+function turbulence!(
+    les::SmagorinskyModel{E1,E2}, lesturb::Smagorinsky, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
+) where {T,F,M,Tu<:MenterF1,E,D,BI,E1,E2}
+
+    mesh = model.domain
+
+    (; coeffs) = model.turbulence
+    (; nut, nutf) = lesturb
+    (; U, Uf, gradU) = S
+    (; Δ, magS) = les
+
+    grad!(gradU, Uf, U, U.BCs, time, config) # update gradient (internal structure of S)
+    limit_gradient!(config.schemes.U.limiter, gradU, U, config)
+    magnitude!(magS, S, config)
+    @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
+
+    # update eddy viscosity 
+    @. nut.values = coeffs.C * Δ.values * magS.values # careful: here Δ = Δ²
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
@@ -132,7 +156,7 @@ end
 function save_output(model::Physics{T,F,M,Tu,E,D,BI}, outputWriter, iteration
     ) where {T,F,M,Tu<:Smagorinsky,E,D,BI}
     args = (
-        ("U", model.momentum.U), 
+        ("U", model.momentum.U),
         ("p", model.momentum.p),
         ("nut", model.turbulence.nut)
     )
