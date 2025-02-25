@@ -20,21 +20,21 @@ end
 Adapt.@adapt_structure Smagorinsky
 
 struct SmagorinskyModel{D,S1,S2}
-    Δ::D 
+    Δ::D
     magS::S1
     state::S2
 end
 Adapt.@adapt_structure SmagorinskyModel
 
 # Model API constructor (pass user input as keyword arguments and process as needed)
-LES{Smagorinsky}(; C=0.15) = begin 
+LES{Smagorinsky}(; C=0.15) = begin
     coeffs = (C=C,)
     ARG = typeof(coeffs)
     LES{Smagorinsky,ARG}(coeffs)
 end
 
 # Functor as constructor (internally called by Physics API): Returns fields and user data
-(rans::LES{Smagorinsky, ARG})(mesh) where ARG = begin
+(rans::LES{Smagorinsky,ARG})(mesh) where {ARG} = begin
     nut = ScalarField(mesh)
     nutf = FaceScalarField(mesh)
     coeffs = rans.args
@@ -62,17 +62,17 @@ Initialisation of turbulent transport equations.
 """
 function initialise(
     turbulence::Smagorinsky, model::Physics{T,F,M,Tu,E,D,BI}, mdotf, peqn, config
-    ) where {T,F,M,Tu,E,D,BI}
+) where {T,F,M,Tu,E,D,BI}
 
     (; solvers, schemes, runtime) = config
     mesh = model.domain
-    
+
     magS = ScalarField(mesh)
     Δ = ScalarField(mesh)
 
     delta!(Δ, mesh, config)
     @. Δ.values = Δ.values^2 # store delta squared since it will be needed
-    
+
     return SmagorinskyModel(Δ, magS, ModelState((), false))
 end
 
@@ -96,10 +96,10 @@ Run turbulence model transport equations.
 """
 function turbulence!(
     les::SmagorinskyModel{E1,E2}, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
-    ) where {T,F,M,Tu,E,D,BI,E1,E2}
+) where {T,F,M,Tu<:Smagorinsky,E,D,BI,E1,E2}
 
     mesh = model.domain
-    
+
     (; nut, nutf, coeffs) = model.turbulence
     (; U, Uf, gradU) = S
     (; Δ, magS) = les
@@ -110,7 +110,31 @@ function turbulence!(
     @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
 
     # update eddy viscosity 
-    @. nut.values = coeffs.C*Δ.values*magS.values # careful: here Δ = Δ²
+    @. nut.values = coeffs.C * Δ.values * magS.values # careful: here Δ = Δ²
+
+    interpolate!(nutf, nut, config)
+    correct_boundaries!(nutf, nut, nut.BCs, time, config)
+    correct_eddy_viscosity!(nutf, nut.BCs, model, config)
+end
+
+function turbulence!(
+    les::SmagorinskyModel{E1,E2}, lesturb::Smagorinsky, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
+) where {T,F,M,Tu<:MenterF1,E,D,BI,E1,E2}
+
+    mesh = model.domain
+
+    (; coeffs) = model.turbulence
+    (; nut, nutf) = lesturb
+    (; U, Uf, gradU) = S
+    (; Δ, magS) = les
+
+    grad!(gradU, Uf, U, U.BCs, time, config) # update gradient (internal structure of S)
+    limit_gradient!(config.schemes.U.limiter, gradU, U, config)
+    magnitude!(magS, S, config)
+    @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
+
+    # update eddy viscosity 
+    @. nut.values = coeffs.C * Δ.values * magS.values # careful: here Δ = Δ²
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
@@ -119,9 +143,9 @@ end
 
 # Specialise VTK writer
 function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
-    ) where {T,F,M,Tu<:Smagorinsky,E,D,BI}
+) where {T,F,M,Tu<:Smagorinsky,E,D,BI}
     args = (
-        ("U", model.momentum.U), 
+        ("U", model.momentum.U),
         ("p", model.momentum.p),
         ("nut", model.turbulence.nut)
     )
