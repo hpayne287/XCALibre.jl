@@ -3,26 +3,30 @@
 using Plots
 using XCALibre
 
-mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2024-11-24-CircleMesh.unv"
 
+grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
+grid = "flatplate_2D_lowRe.unv"
+mesh_file = joinpath(grids_dir, grid)
+
+# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-20-CircleMesh.unv"
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 # Select backend and setup hardware
 backend = CPU()
-hardware = set_hardware(backend=backend, workgroup=4)
+hardware = set_hardware(backend=backend, workgroup=32)
 
 mesh_dev = mesh
 
-velocity = [4, 0.0, 0.0]
-nu = 1e-3
-Re = velocity[1] * 0.1 / nu
-k_inlet = 1
-ω_inlet = 1000
+velocity = [5.4, 0.0, 0.0]
+nu = 1.48e-5
+Re = 10 / nu
+k_inlet = 0.05
+ω_inlet = 275
 
 model = Physics(
     time=Steady(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{MenterF1}(walls=(:wall1,:wall2,:wall3)),
+    turbulence=DES{MenterF1}(walls=(:wall,)),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
@@ -32,40 +36,35 @@ model = Physics(
 @assign! model momentum U (
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
-    Wall(:wall2, [0.0, 0.0, 0.0]),
-    Wall(:wall1, [0.0, 0.0, 0.0]),
-    Wall(:wall3, [0.0, 0.0, 0.0]),
+    Wall(:wall, [0.0, 0.0, 0.0]),
+    Neumann(:top,0.0)
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
-    Neumann(:wall1, 0.0),
-    Neumann(:wall2, 0.0),
-    Neumann(:wall3, 0.0),
+    Neumann(:wall, 0.0),
+    Neumann(:top,0.0)
 )
 @assign! model turbulence k (
     Dirichlet(:inlet, k_inlet),
     Neumann(:outlet, 0.0),
-    KWallFunction(:wall1),
-    KWallFunction(:wall2),
-    KWallFunction(:wall3)
+    Dirichlet(:wall,0.0),
+    Neumann(:top,0.0)
 )
 
 @assign! model turbulence omega (
     Dirichlet(:inlet, ω_inlet),
     Neumann(:outlet, 0.0),
-    OmegaWallFunction(:wall1),
-    OmegaWallFunction(:wall2),
-    OmegaWallFunction(:wall3)
+    OmegaWallFunction(:wall),
+    Neumann(:top,0.0)
 )
 
 @assign! model turbulence nut (
     Dirichlet(:inlet, k_inlet / ω_inlet),
     Neumann(:outlet, 0.0),
-    NutWallFunction(:wall1),
-    NutWallFunction(:wall2),
-    NutWallFunction(:wall3)
+    Dirichlet(:wall,0.0),
+    Neumann(:top,0.0)
 )
 
 #endregion
