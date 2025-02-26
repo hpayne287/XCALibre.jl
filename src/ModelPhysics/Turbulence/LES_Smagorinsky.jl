@@ -128,30 +128,6 @@ function turbulence!(
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
 end
 
-function turbulence!(
-    les::SmagorinskyModel{E1,E2}, lesturb::Smagorinsky, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
-) where {T,F,M,Tu<:MenterF1,E,D,BI,E1,E2}
-
-    mesh = model.domain
-
-    (; coeffs) = model.turbulence
-    (; nut, nutf) = lesturb
-    (; U, Uf, gradU) = S
-    (; Δ, magS) = les
-
-    grad!(gradU, Uf, U, U.BCs, time, config) # update gradient (internal structure of S)
-    limit_gradient!(config.schemes.U.limiter, gradU, U, config)
-    magnitude!(magS, S, config)
-    @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
-
-    # update eddy viscosity 
-    @. nut.values = coeffs.C * Δ.values * magS.values # careful: here Δ = Δ²
-
-    interpolate!(nutf, nut, config)
-    correct_boundaries!(nutf, nut, nut.BCs, time, config)
-    correct_eddy_viscosity!(nutf, nut.BCs, model, config)
-end
-
 # Specialise VTK writer
 function save_output(model::Physics{T,F,M,Tu,E,D,BI}, outputWriter, iteration
     ) where {T,F,M,Tu<:Smagorinsky,E,D,BI}
