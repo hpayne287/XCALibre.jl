@@ -2,13 +2,14 @@
 
 using Plots
 using XCALibre
+using Alert
 
 
 grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
 grid = "flatplate_2D_lowRe.unv"
 mesh_file = joinpath(grids_dir, grid)
 
-# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-20-CircleMesh.unv"
+# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-25-BumpMesh2.unv"
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 # Select backend and setup hardware
@@ -122,7 +123,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=100, time_step=1, write_interval=1)
+runtime = set_runtime(iterations=100, time_step=0.1, write_interval=1)
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
@@ -134,3 +135,5 @@ initialise!(model.turbulence.omega, ω_inlet)
 initialise!(model.turbulence.nut, k_inlet/ω_inlet)
 
 residuals = run!(model, config);
+
+alert("Simulation Done!!");
