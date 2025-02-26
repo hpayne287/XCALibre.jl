@@ -33,6 +33,7 @@ struct MenterF1{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     rans::M1
     les::M2
     y::Y
+    shield
 end
 Adapt.@adapt_structure MenterF1
 
@@ -93,6 +94,7 @@ end
     coeffs = des.args
     rans = des.rans(mesh)
     les = des.les(mesh)
+    shield = ScalarField(mesh)
 
     #create y values
     y = ScalarField(mesh)
@@ -109,7 +111,7 @@ end
     end
     y = assign(y, BCs...)
 
-    MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y)
+    MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y, shield)
 end
 
 function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
@@ -173,7 +175,7 @@ function turbulence!(
 ) where {T,F,M,Tu<:MenterF1,E,D,BI}
 
     (; rho) = model.fluid
-    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y) = model.turbulence
+    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y,shield) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
     (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
@@ -197,6 +199,8 @@ function turbulence!(
     @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
      (500 * nut.values) / (y.values^2 * omega.values)),
      (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+
+    @. blnd_func.values = ifelse(y.values < 0.02, 1.0, blnd_func.values);
 
     @. nut.values = (blnd_func.values * nutRANS.values) + ((1-blnd_func.values) * nutLES.values);
 
@@ -228,7 +232,8 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
             ("y",model.turbulence.y),
             ("F1",model.turbulence.blnd_func),
             ("ransnut", model.turbulence.rans.nut),
-            ("lesnut", model.turbulence.les.nut)
+            ("lesnut", model.turbulence.les.nut),
+            ("Shield",model.turbulence.shield)
         )
     end
     write_vtk(name, model.domain, VTKWriter, args...)
