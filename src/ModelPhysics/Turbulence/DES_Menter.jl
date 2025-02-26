@@ -53,7 +53,7 @@ Adapt.@adapt_structure MenterF1Model
 #Model Constructor using a RANS and LES model
 # Can be rewritten for K-ϵ model or another LES turbulence type
 DES{MenterF1}(; RANSTurb=KOmega, LESTurb=Smagorinsky, walls,
-    C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31,β⁺=0.09, α1=0.52, σk=0.5, σω=0.5,C=0.15) = begin
+    C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
     rans = RANS{RANSTurb}()
     # Construct LES turbulence
@@ -70,9 +70,9 @@ DES{MenterF1}(; RANSTurb=KOmega, LESTurb=Smagorinsky, walls,
         βstar=βstar,
         a1=a1,
         walls=walls,
-        β⁺=β⁺, 
-        α1=α1,  
-        σk=σk, 
+        β⁺=β⁺,
+        α1=α1,
+        σk=σk,
         σω=σω,
         C=C
     )
@@ -110,6 +110,20 @@ end
         end
     end
     y = assign(y, BCs...)
+
+    ϕ = ScalarField(mesh)
+    function f(y)
+        y = y/0.02
+        return -0.5 * (tanh(6*y-3.5)-1)
+    end
+    
+    for (i,val) in enumerate(ϕ.values)
+        Cell = mesh.cells[i]
+        ycell = Cell.centre[2]
+        ϕ.values[i] = f(ycell)
+    end
+
+    @. blnd_func.values = ϕ.values
 
     MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y, shield)
 end
@@ -172,42 +186,143 @@ end
 
 function turbulence!(
     des::MenterF1Model, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
-) where {T,F,M,Tu<:MenterF1,E,D,BI}
+) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
 
     (; rho) = model.fluid
-    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y,shield) = model.turbulence
+    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y, shield) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
     (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
 
-    turbulence!(ransTurbModel, rans, model, S, prev, time, config)
+    turbulence!(ransTurbModel, model, S, prev, time, config)
 
-    turbulence!(lesTurbModel, les, model, S, prev, time, config)
+    turbulence!(lesTurbModel, model, S, prev, time, config)
 
     nutRANS = rans.nut
     nutLES = les.nut
-    nueffω = get_flux(ω_eqn, 3)
-    Dωf = get_flux(ω_eqn, 4)
-    Pω = get_source(ω_eqn, 1)
-    dkdomegadx = get_source(ω_eqn, 2)
 
-    grad!(∇ω, omegaf, omega, omega.BCs, time, config)
-    grad!(∇k, kf, k, k.BCs, time, config)
-    inner_product!(dkdomegadx, ∇k, ∇ω, config)
+    # nueffω = get_flux(ω_eqn, 3)
+    # Dωf = get_flux(ω_eqn, 4)
+    # Pω = get_source(ω_eqn, 1)
+    # dkdomegadx = get_source(ω_eqn, 2)
 
-    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
-    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-     (500 * nut.values) / (y.values^2 * omega.values)),
-     (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+    # grad!(∇ω, omegaf, omega, omega.BCs, time, config)
+    # grad!(∇k, kf, k, k.BCs, time, config)
+    # inner_product!(dkdomegadx, ∇k, ∇ω, config)
 
-    @. blnd_func.values = ifelse(y.values < 0.02, 1.0, blnd_func.values);
+    # @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
+    # @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
+    #  (500 * nut.values) / (y.values^2 * omega.values)),
+    #  (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
 
-    @. nut.values = (blnd_func.values * nutRANS.values) + ((1-blnd_func.values) * nutLES.values);
+    # @. blnd_func.values = ifelse(y.values < 0.02, 1.0, blnd_func.values);
+
+    
+
+    @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
 
+end
+
+function turbulence!(
+    rans::KOmegaModel{E1,E2,S1}, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
+) where {T,F,M,Tu<:MenterF1,E,D,BI,E1,E2,S1}
+
+    mesh = model.domain
+
+    (; rho, rhof, nu, nuf) = model.fluid
+    (; k, omega, kf, omegaf, coeffs) = model.turbulence
+    (; nut, nutf) = model.turbulence.rans
+    (; U, Uf, gradU) = S
+    (; k_eqn, ω_eqn, state) = rans
+    (; solvers, runtime) = config
+
+    mueffk = get_flux(k_eqn, 3)
+    Dkf = get_flux(k_eqn, 4)
+    Pk = get_source(k_eqn, 1)
+
+    mueffω = get_flux(ω_eqn, 3)
+    Dωf = get_flux(ω_eqn, 4)
+    Pω = get_source(ω_eqn, 1)
+
+    # update fluxes and sources
+
+    # TO-DO: Need to bring gradient calculation inside turbulence models!!!!!
+
+    grad!(gradU, Uf, U, U.BCs, time, config)
+    limit_gradient!(config.schemes.U.limiter, gradU, U, config)
+    magnitude2!(Pk, S, config, scale_factor=2.0) # multiplied by 2 (def of Sij)
+    # constrain_boundary!(omega, omega.BCs, model, config) # active with WFs only
+
+    @. Pω.values = rho.values * coeffs.α1 * Pk.values
+    @. Pk.values = rho.values * nut.values * Pk.values
+    correct_production!(Pk, k.BCs, model, S.gradU, config) # Must be after previous line
+    @. Dωf.values = rho.values * coeffs.β1 * omega.values
+    @. mueffω.values = rhof.values * (nuf.values + coeffs.σω * nutf.values)
+    @. Dkf.values = rho.values * coeffs.β⁺ * omega.values
+    @. mueffk.values = rhof.values * (nuf.values + coeffs.σk * nutf.values)
+
+    # Solve omega equation
+    # prev .= omega.values
+    discretise!(ω_eqn, omega, config)
+    apply_boundary_conditions!(ω_eqn, omega.BCs, nothing, time, config)
+    # implicit_relaxation!(ω_eqn, omega.values, solvers.omega.relax, nothing, config)
+    implicit_relaxation_diagdom!(ω_eqn, omega.values, solvers.omega.relax, nothing, config)
+    constrain_equation!(ω_eqn, omega.BCs, model, config) # active with WFs only
+    update_preconditioner!(ω_eqn.preconditioner, mesh, config)
+    ω_res = solve_system!(ω_eqn, solvers.omega, omega, nothing, config)
+
+    # constrain_boundary!(omega, omega.BCs, model, config) # active with WFs only
+    bound!(omega, config)
+    # explicit_relaxation!(omega, prev, solvers.omega.relax, config)
+
+    # Solve k equation
+    # prev .= k.values
+    discretise!(k_eqn, k, config)
+    apply_boundary_conditions!(k_eqn, k.BCs, nothing, time, config)
+    # implicit_relaxation!(k_eqn, k.values, solvers.k.relax, nothing, config)
+    implicit_relaxation_diagdom!(k_eqn, k.values, solvers.k.relax, nothing, config)
+    update_preconditioner!(k_eqn.preconditioner, mesh, config)
+    k_res = solve_system!(k_eqn, solvers.k, k, nothing, config)
+    bound!(k, config)
+    # explicit_relaxation!(k, prev, solvers.k.relax, config)
+
+    @. nut.values = k.values / omega.values
+
+    interpolate!(nutf, nut, config)
+    correct_boundaries!(nutf, nut, nut.BCs, time, config)
+    correct_eddy_viscosity!(nutf, nut.BCs, model, config)
+
+    state.residuals = ((:k, k_res), (:omega, ω_res))
+    state.converged = k_res < solvers.k.convergence && ω_res < solvers.omega.convergence
+    return nothing
+end
+
+function turbulence!(
+    les::SmagorinskyModel{E1,E2}, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
+) where {T,F,M,Tu<:MenterF1,E,D,BI,E1,E2}
+
+    mesh = model.domain
+
+    (; coeffs) = model.turbulence
+    (; nut, nutf) = model.turbulence.les
+    (; U, Uf, gradU) = S
+    (; Δ, magS) = les
+
+    grad!(gradU, Uf, U, U.BCs, time, config) # update gradient (internal structure of S)
+    limit_gradient!(config.schemes.U.limiter, gradU, U, config)
+    magnitude!(magS, S, config)
+    @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
+
+    # update eddy viscosity 
+    @. nut.values = coeffs.C * Δ.values * magS.values # careful: here Δ = Δ²
+
+    interpolate!(nutf, nut, config)
+    correct_boundaries!(nutf, nut, nut.BCs, time, config)
+    correct_eddy_viscosity!(nutf, nut.BCs, model, config)
 end
 
 #Specialise VTK writer
@@ -229,11 +344,11 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
             ("k", model.turbulence.k),
             ("omega", model.turbulence.omega),
             ("nut", model.turbulence.nut),
-            ("y",model.turbulence.y),
-            ("F1",model.turbulence.blnd_func),
+            ("y", model.turbulence.y),
+            ("F1", model.turbulence.blnd_func),
             ("ransnut", model.turbulence.rans.nut),
             ("lesnut", model.turbulence.les.nut),
-            ("Shield",model.turbulence.shield)
+            ("Shield", model.turbulence.shield)
         )
     end
     write_vtk(name, model.domain, VTKWriter, args...)
