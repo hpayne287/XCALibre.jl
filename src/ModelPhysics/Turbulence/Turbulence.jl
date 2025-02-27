@@ -17,10 +17,6 @@ using XCALibre.VTK
 
 include("turbulence_types.jl")
 
-# DES models
-include("DES_Functions.jl")
-include("DES_Menter.jl")
-
 # RANS models
 include("RANS_functions.jl")
 include("RANS_tensor_algebra.jl")
@@ -31,6 +27,10 @@ include("RANS_kOmegaLKE.jl")
 # LES models
 include("LES_functions.jl")
 include("LES_Smagorinsky.jl")
+
+# DES models
+include("DES_Functions.jl")
+include("DES_Menter.jl")
 
 export initialise, turbulence!, model2vtk
 
