@@ -17,10 +17,6 @@ using XCALibre.IOFormats
 
 include("turbulence_types.jl")
 
-# DES models
-include("DES_Functions.jl")
-include("DES_Menter.jl")
-
 # RANS models
 include("RANS_functions.jl")
 include("RANS_tensor_algebra.jl")
