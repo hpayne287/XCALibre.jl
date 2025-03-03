@@ -123,7 +123,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=100, time_step=0.1, write_interval=1)
+runtime = set_runtime(iterations=100, time_step=1, write_interval=100)
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
