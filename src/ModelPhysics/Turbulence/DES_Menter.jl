@@ -176,8 +176,6 @@ function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField
 
     lesTurbModel = initialise(les, model, mdotf, p_eqn, config)
 
-    @. rans.nut.values = nut.values;
-    @. les.nut.values = nut.values;
 
     init_residuals = (:k, 1.0), (:omega, 1.0)
     init_convergence = false
@@ -196,6 +194,9 @@ function turbulence!(
     (; βstar, σω2) = model.turbulence.coeffs
     (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
+
+    @. rans.nut.values = nut.values;
+    @. les.nut.values = nut.values;
 
     turbulence!(ransTurbModel, model, S, prev, time, config)
 
