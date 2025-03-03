@@ -196,7 +196,7 @@ function turbulence!(
 
     turbulence!(ransTurbModel, model, S, prev, time, config)
 
-    turbulence!(lesTurbModel, model, S, prev, time, config)
+    # turbulence!(lesTurbModel, model, S, prev, time, config)
 
     nutRANS = rans.nut
     nutLES = les.nut
@@ -219,7 +219,8 @@ function turbulence!(
 
     
 
-    @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
+    # @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
+    @. nut.values = nutRANS.values;
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
@@ -296,7 +297,7 @@ function turbulence!(
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
 
-    state.residuals = ((:k, k_res), (:omega, ω_res))
+    state.residuals = ((:k , k_res), (:omega, ω_res))
     state.converged = k_res < solvers.k.convergence && ω_res < solvers.omega.convergence
     return nothing
 end
