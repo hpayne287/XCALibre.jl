@@ -111,26 +111,26 @@ end
     end
     y = assign(y, BCs...)
 
-    ϕ = ScalarField(mesh)
-    function f(y)
-        y = y/0.02
-        return -0.5 * (tanh(6*y-3.5)-1)
-    end
+    # ϕ = ScalarField(mesh)
+    # function f(y)
+    #     y = y/0.02
+    #     return -0.5 * (tanh(6*y-3.5)-1)
+    # end
     
-    for (i,val) in enumerate(ϕ.values)
-        Cell = mesh.cells[i]
-        ycell = Cell.centre[2]
-        ϕ.values[i] = f(ycell)
-    end
+    # for (i,val) in enumerate(ϕ.values)
+    #     Cell = mesh.cells[i]
+    #     ycell = Cell.centre[2]
+    #     ϕ.values[i] = f(ycell)
+    # end
 
-    @. blnd_func.values = ϕ.values
+    # @. blnd_func.values = ϕ.values
 
     MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y, shield)
 end
 
 function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
 
-    (; k, omega, nut, y, kf, omegaf) = model.turbulence
+    (; k, omega, nut, y, kf, omegaf, rans, les) = model.turbulence
     (; solvers, schemes, runtime) = config
     mesh = mdotf.mesh
     eqn = p_eqn.equation
@@ -172,9 +172,12 @@ function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField
 
     wall_distance!(model, config)
 
-    ransTurbModel = initialise(turbulence.rans, model, mdotf, p_eqn, config)
+    ransTurbModel = initialise(rans, model, mdotf, p_eqn, config)
 
-    lesTurbModel = initialise(turbulence.les, model, mdotf, p_eqn, config)
+    lesTurbModel = initialise(les, model, mdotf, p_eqn, config)
+
+    @. rans.nut.values = nut.values;
+    @. les.nut.values = nut.values;
 
     init_residuals = (:k, 1.0), (:omega, 1.0)
     init_convergence = false
@@ -196,31 +199,31 @@ function turbulence!(
 
     turbulence!(ransTurbModel, model, S, prev, time, config)
 
-    # turbulence!(lesTurbModel, model, S, prev, time, config)
+    turbulence!(lesTurbModel, model, S, prev, time, config)
 
     nutRANS = rans.nut
     nutLES = les.nut
 
-    # nueffω = get_flux(ω_eqn, 3)
-    # Dωf = get_flux(ω_eqn, 4)
-    # Pω = get_source(ω_eqn, 1)
-    # dkdomegadx = get_source(ω_eqn, 2)
+    nueffω = get_flux(ω_eqn, 3)
+    Dωf = get_flux(ω_eqn, 4)
+    Pω = get_source(ω_eqn, 1)
+    dkdomegadx = get_source(ω_eqn, 2)
 
-    # grad!(∇ω, omegaf, omega, omega.BCs, time, config)
-    # grad!(∇k, kf, k, k.BCs, time, config)
-    # inner_product!(dkdomegadx, ∇k, ∇ω, config)
+    grad!(∇ω, omegaf, omega, omega.BCs, time, config)
+    grad!(∇k, kf, k, k.BCs, time, config)
+    inner_product!(dkdomegadx, ∇k, ∇ω, config)
 
-    # @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
-    # @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-    #  (500 * nut.values) / (y.values^2 * omega.values)),
-    #  (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
+    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
+     (500 * nut.values) / (y.values^2 * omega.values)),
+     (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
 
     # @. blnd_func.values = ifelse(y.values < 0.02, 1.0, blnd_func.values);
 
     
 
-    # @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
-    @. nut.values = nutRANS.values;
+    @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
+    # @. nut.values = nutRANS.values;
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
