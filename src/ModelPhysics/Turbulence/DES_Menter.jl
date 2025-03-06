@@ -97,19 +97,19 @@ end
     shield = ScalarField(mesh)
 
     #create y values
-    y = ScalarField(mesh)
-    walls = des.args.walls
-    BCs = []
-    for boundary ∈ mesh.boundaries
-        for namedwall ∈ walls
-            if boundary.name == namedwall
-                push!(BCs, Dirichlet(boundary.name, 0.0))
-            else
-                push!(BCs, Neumann(boundary.name, 0.0))
-            end
-        end
-    end
-    y = assign(y, BCs...)
+    # y = ScalarField(mesh)
+    # walls = des.args.walls
+    # BCs = []
+    # for boundary ∈ mesh.boundaries
+    #     for namedwall ∈ walls
+    #         if boundary.name == namedwall
+    #             push!(BCs, Dirichlet(boundary.name, 0.0))
+    #         else
+    #             push!(BCs, Neumann(boundary.name, 0.0))
+    #         end
+    #     end
+    # end
+    # y = assign(y, BCs...)
 
 
     # δ = 0.01
@@ -119,11 +119,11 @@ end
     #     return -0.5 * (tanh(6*y-3.5)-1)
     # end
     
-    # for (i,val) in enumerate(blnd_func.values)
-    #     Cell = mesh.cells[i]
-    #     ycell = Cell.centre[2]
-    #     blnd_func.values[i] = f(ycell)
-    # end
+    for (i,val) in enumerate(y.values)
+        Cell = mesh.cells[i]
+        ycell = Cell.centre[2]
+        y.values[i] = ycell
+    end
 
 
     MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y, shield)
@@ -171,7 +171,7 @@ function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField
     grad!(∇ω, omegaf, omega, omega.BCs, time, config)
     grad!(∇k, kf, k, k.BCs, time, config)
 
-    wall_distance!(model, config)
+    # wall_distance!(model, config)
 
     ransTurbModel = initialise(rans, model, mdotf, p_eqn, config)
 
