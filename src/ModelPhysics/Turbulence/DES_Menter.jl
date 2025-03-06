@@ -220,6 +220,8 @@ function turbulence!(
     #  (500 * nut.values) / (y.values^2 * omega.values)),
     #  (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
 
+    @. blnd_func.values = tanh(max((2 * sqrt(k.values))/(βstar * omega.values * y.values),(500*nut.values)/(y.values^2*omega.values))^2);
+
     # @. blnd_func.values = ifelse(y.values < 0.02, 1.0, blnd_func.values);
 
     
