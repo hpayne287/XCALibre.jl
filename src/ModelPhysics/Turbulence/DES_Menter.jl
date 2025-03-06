@@ -111,19 +111,20 @@ end
     end
     y = assign(y, BCs...)
 
-    # ϕ = ScalarField(mesh)
+
+    # δ = 0.01
+
     # function f(y)
-    #     y = y/0.02
+    #     y = y/δ
     #     return -0.5 * (tanh(6*y-3.5)-1)
     # end
     
-    # for (i,val) in enumerate(ϕ.values)
+    # for (i,val) in enumerate(blnd_func.values)
     #     Cell = mesh.cells[i]
     #     ycell = Cell.centre[2]
-    #     ϕ.values[i] = f(ycell)
+    #     blnd_func.values[i] = f(ycell)
     # end
 
-    # @. blnd_func.values = ϕ.values
 
     MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y, shield)
 end
@@ -205,19 +206,19 @@ function turbulence!(
     nutRANS = rans.nut
     nutLES = les.nut
 
-    nueffω = get_flux(ω_eqn, 3)
-    Dωf = get_flux(ω_eqn, 4)
-    Pω = get_source(ω_eqn, 1)
-    dkdomegadx = get_source(ω_eqn, 2)
+    # nueffω = get_flux(ω_eqn, 3)
+    # Dωf = get_flux(ω_eqn, 4)
+    # Pω = get_source(ω_eqn, 1)
+    # dkdomegadx = get_source(ω_eqn, 2)
 
-    grad!(∇ω, omegaf, omega, omega.BCs, time, config)
-    grad!(∇k, kf, k, k.BCs, time, config)
-    inner_product!(dkdomegadx, ∇k, ∇ω, config)
+    # grad!(∇ω, omegaf, omega, omega.BCs, time, config)
+    # grad!(∇k, kf, k, k.BCs, time, config)
+    # inner_product!(dkdomegadx, ∇k, ∇ω, config)
 
-    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
-    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-     (500 * nut.values) / (y.values^2 * omega.values)),
-     (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+    # @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
+    # @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
+    #  (500 * nut.values) / (y.values^2 * omega.values)),
+    #  (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
 
     # @. blnd_func.values = ifelse(y.values < 0.02, 1.0, blnd_func.values);
 
@@ -317,8 +318,8 @@ function turbulence!(
     (; U, Uf, gradU) = S
     (; Δ, magS) = les
 
-    grad!(gradU, Uf, U, U.BCs, time, config) # update gradient (internal structure of S)
-    limit_gradient!(config.schemes.U.limiter, gradU, U, config)
+    # grad!(gradU, Uf, U, U.BCs, time, config) # update gradient (internal structure of S)
+    # limit_gradient!(config.schemes.U.limiter, gradU, U, config)
     magnitude!(magS, S, config)
     @. magS.values *= sqrt(2) # should fuse into definition of magnitude function!
 
