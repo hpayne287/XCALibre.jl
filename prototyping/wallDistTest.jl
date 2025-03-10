@@ -1,18 +1,11 @@
 using XCALibre
-# using CUDA
-
-# backwardFacingStep_2mm, backwardFacingStep_10mm
-# mesh_file = "unv_sample_meshes/flatplate_transition.unv"
-# mesh_file = "unv_sample_meshes/flatplate_2D_lowRe.unv"
-# mesh_file = "unv_sample_meshes/cylinder_d10mm_5mm.unv"
+using Alert
 
 grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
 grid = "flatplate_2D_lowRe.unv"
 mesh_file = joinpath(grids_dir, grid)
 
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
-
-# hardware = set_hardware(backend=CUDABackend(), workgroup=32)
 hardware = set_hardware(backend=CPU(), workgroup=1024)
 
 mesh_dev = adapt(hardware.backend, mesh)
@@ -124,6 +117,7 @@ solvers = (
         preconditioner = Jacobi(),
         convergence = 1e-8,
         relax       = 0.9,
+        itmax = 500,
     ),
     kl = set_solver(
         model.turbulence.kl;
@@ -167,3 +161,5 @@ initialise!(model.turbulence.omega, ω_inlet)
 initialise!(model.turbulence.nut, k_inlet/ω_inlet)
 
 residuals = run!(model, config); #, pref=0.0) # 9.39k allocs
+
+alert("Simulation done")
