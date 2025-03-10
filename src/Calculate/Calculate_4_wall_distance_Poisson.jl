@@ -12,7 +12,7 @@ function wall_distance!(model, config)
 
     y = model.turbulence.y
     (; solvers, schemes, runtime, hardware) = config
-    iterations = 500 #This should really be specifiable in the setup surely?
+    iterations = solvers.y.itmax
     
     phi = ScalarField(mesh)
     phif = FaceScalarField(mesh)
@@ -51,25 +51,23 @@ function wall_distance!(model, config)
     end
     
     grad!(phiGrad, phif, phi, phi.BCs, zero(TF), config) # assuming time=0
-    phiGrad2 = Grad{schemes.y.gradient}(phiGrad.result)
-    phiGradF = FaceVectorField(mesh)
-    grad!(phiGrad2,phiGradF,phiGrad.result,phi.BCs,zero(TF),config)
-    normal_distance!(y, phi, phiGrad2, config)
+    normal_distance!(y, phi, phiGrad, config)
 
 end
 
-function normal_distance!(y, phi, phiGrad2, config)
+function normal_distance!(y, phi, phiGrad, config)
     (; hardware) = config
     (; backend, workgroup) = hardware
 
     kernel! = _normal_distance!(backend, workgroup)
-    kernel!(y, phi, phiGrad2, ndrange = length(phi.values))
+    kernel!(y, phi, phiGrad, ndrange = length(phi.values))
     # KernelAbstractions.synchronize(backend)
 end
 
-@kernel function _normal_distance!(y, phi, phiGrad2)
+@kernel function _normal_distance!(y, phi, phiGrad)
     i = @index(Global)
 
-    gradMag = norm(phiGrad2.result[i])
-    y.values[i] = (2*(gradMag  + phi.values[i]))
+    # y = ± Σⱼ₌₁,₃ (∂ϕ/∂xⱼ)² + Σⱼ₌₁,₃ (∂ϕ/∂xⱼ)² + 2ϕ
+    gradMag = norm(phiGrad.result[i])
+    y.values[i] = (2*(gradMag^2  + phi.values[i]))
 end
