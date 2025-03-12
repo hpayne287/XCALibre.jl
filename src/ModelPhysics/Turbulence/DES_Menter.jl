@@ -51,7 +51,6 @@ end
 Adapt.@adapt_structure MenterF1Model
 
 #Model Constructor using a RANS and LES model
-# Can be rewritten for K-ϵ model or another LES turbulence type
 DES{MenterF1}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, walls,
     C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
@@ -206,6 +205,7 @@ function turbulence!(
     nutRANS = rans.nut
     nutLES = les.nut
 
+    #region F1 Implementation attempt
     # nueffω = get_flux(ω_eqn, 3)
     # Dωf = get_flux(ω_eqn, 4)
     # Pω = get_source(ω_eqn, 1)
@@ -219,6 +219,7 @@ function turbulence!(
     # @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
     #  (500 * nut.values) / (y.values^2 * omega.values)),
     #  (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+    #endregion
 
     @. blnd_func.values = tanh(max((2 * sqrt(k.values))/(βstar * omega.values * y.values),(500*nut.values)/(y.values^2*omega.values))^2);
 
