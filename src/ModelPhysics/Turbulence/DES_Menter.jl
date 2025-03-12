@@ -52,12 +52,12 @@ Adapt.@adapt_structure MenterF1Model
 
 #Model Constructor using a RANS and LES model
 # Can be rewritten for K-ϵ model or another LES turbulence type
-DES{MenterF1}(; RANSTurb=KOmega, LESTurb=Smagorinsky, walls,
+DES{MenterF1}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, walls,
     C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
-    rans = RANS{RANSTurb}()
+    rans = TurbModel1{Turb1}()
     # Construct LES turbulence
-    les = LES{LESTurb}()
+    les = TurbModel2{Turb2}()
     # DES coefficients
     args = (
         C_DES=C_DES,
@@ -95,9 +95,10 @@ end
     rans = des.rans(mesh)
     les = des.les(mesh)
     shield = ScalarField(mesh)
+    y = ScalarField(mesh)
+
 
     #create y values
-    # y = ScalarField(mesh)
     # walls = des.args.walls
     # BCs = []
     # for boundary ∈ mesh.boundaries
@@ -112,12 +113,14 @@ end
     # y = assign(y, BCs...)
 
 
+    #region Dummy F1 Function
     # δ = 0.01
 
     # function f(y)
     #     y = y/δ
     #     return -0.5 * (tanh(6*y-3.5)-1)
     # end
+    #endregion
     
     for (i,val) in enumerate(y.values)
         Cell = mesh.cells[i]
@@ -137,11 +140,8 @@ function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField
     eqn = p_eqn.equation
 
     nueffω = FaceScalarField(mesh)
-    # nueffk = FaceScalarField(mesh)
-    # Dkf = ScalarField(mesh)
     Dωf = ScalarField(mesh)
     dkdomegadx = ScalarField(mesh)
-    # Pk = ScalarField(mesh)
     Pω = ScalarField(mesh)
     ∇k = Grad{schemes.k.gradient}(k)
     ∇ω = Grad{schemes.p.gradient}(omega)
@@ -222,12 +222,7 @@ function turbulence!(
 
     @. blnd_func.values = tanh(max((2 * sqrt(k.values))/(βstar * omega.values * y.values),(500*nut.values)/(y.values^2*omega.values))^2);
 
-    # @. blnd_func.values = ifelse(y.values < 0.02, 1.0, blnd_func.values);
-
-    
-
     @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
-    # @. nut.values = nutRANS.values;
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
