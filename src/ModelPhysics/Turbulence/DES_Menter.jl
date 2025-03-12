@@ -7,18 +7,18 @@ export MenterF1
 Menter model containing all Menter field parameters
 
 ### Fields
-- 'k' -- Turbulent kinetic energy ScalarField.
-- 'omega' -- Specific dissipation rate ScalarField.
-- 'nut' -- Eddy viscosity ScalarField.
-- 'blnd_func' -- Menter blending function ScalarField.
-- 'CDkw' -- Blending variable ScalarField
-- 'kf' -- Turbulent kinetic energy FaceScalarField.
-- 'omegaf' -- Specific dissipation rate FaceScalarField.
-- 'nutf' -- Eddy viscosity FaceScalarField.
-- 'coeffs' -- Model coefficients.
-- 'rans' -- Stores the RANS model for blending.
-- 'les' -- Stores the LES model for blending.
-- 'y' -- Near-wall distance for model.
+- `k` -- Turbulent kinetic energy ScalarField.
+- `omega` -- Specific dissipation rate ScalarField.
+- `nut` -- Eddy viscosity ScalarField.
+- `blnd_func` -- Menter blending function ScalarField.
+- `CDkw` -- Blending variable ScalarField
+- `kf` -- Turbulent kinetic energy FaceScalarField.
+- `omegaf` -- Specific dissipation rate FaceScalarField.
+- `nutf` -- Eddy viscosity FaceScalarField.
+- `coeffs` -- Model coefficients.
+- `rans` -- Stores the RANS model for blending.
+- `les` -- Stores the LES model for blending.
+- `y` -- Near-wall distance for model.
 """
 struct MenterF1{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
