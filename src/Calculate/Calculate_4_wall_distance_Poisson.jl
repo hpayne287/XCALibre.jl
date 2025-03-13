@@ -69,7 +69,7 @@ end
 
     # y = ± Σⱼ₌₁,₃ (∂ϕ/∂xⱼ)² + Σⱼ₌₁,₃ (∂ϕ/∂xⱼ)² + 2ϕ
     gradMag = norm(phiGrad.result[i])
-    ymin = (-gradMag + sqrt(gradMag^2 + 2*phi.values[i]))
-    ymax = (-gradMag - sqrt(gradMag^2 + 2*phi.values[i]))
+    ymin = (-gradMag + (gradMag^2 + 2*phi.values[i]))
+    ymax = (-gradMag - (gradMag^2 + 2*phi.values[i]))
     y.values[i] = ymin+ymax
 end
