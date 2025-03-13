@@ -212,7 +212,17 @@ function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField
     init_convergence = false
     state = ModelState(init_residuals, init_convergence)
 
-    return MenterF1Model(ransTurbModel, lesTurbModel, ω_eqn, nueffω, Dωf, Pω, ∇k, ∇ω, state)
+    return MenterF1Model(
+        ransTurbModel,
+        lesTurbModel, 
+        ω_eqn, 
+        nueffω, 
+        Dωf, 
+        Pω, 
+        ∇k, 
+        ∇ω, 
+        state
+    )
 
 end
 
