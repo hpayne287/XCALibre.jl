@@ -132,7 +132,37 @@ end
     MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y, shield)
 end
 
+#Model initialisation
+"""
+    initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
+
+Initialisation of turbulent transport equations 
+
+### Input
+- `turbulence` -- turbulence model.
+- `model`  -- Physics model defined by user.
+- `mdtof`  -- Face mass flow.
+- `peqn`   -- Pressure equation.
+- `config` -- Configuration structure defined by user with solvers, schemes, runtime and 
+          hardware structures set.
+
+### Output
+- `MenterF1Model(
+        ransTurbModel,
+        lesTurbModel,
+        ω_eqn,
+        nueffω,
+        Dωf,
+        Pω,
+        ∇k,
+        ∇ω,
+        state
+    )` -- Turblence model structure
+
+"""
 function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
+
+    @info "Initialising DES Menter Model..."
 
     (; k, omega, nut, y, kf, omegaf, rans, les) = model.turbulence
     (; solvers, schemes, runtime) = config
@@ -186,13 +216,30 @@ function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField
 
 end
 
+#Model solver call (implementation)
+"""
+    turbulence!(
+    des::MenterF1Model, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
+    ) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
+
+Run turbulence model transport equations.
+
+### Input
+- `des::MenterF1Model` -- MenterF1 turbulence model.
+- `model`  -- Physics model defined by user.
+- `S`   -- Strain rate tensor.
+- `prev`  -- Previous field.
+- `time`   -- 
+- `config` -- Configuration structure defined by user with solvers, schemes, runtime and 
+              hardware structures set.
+"""
 function turbulence!(
     des::MenterF1Model, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
 ) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
 
     (; rho) = model.fluid
     (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y, shield) = model.turbulence
-    (; βstar, σω2) = model.turbulence.coeffs
+    (; βstar, σω2, σd) = model.turbulence.coeffs
     (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
 
@@ -206,8 +253,7 @@ function turbulence!(
     nutRANS = rans.nut
     nutLES = les.nut
 
-    #region F1 Implementation attempt
-    if !(rans::KOmegaLKE)
+    if !(typeof(rans) == KOmegaLKE)
         nueffω = get_flux(ω_eqn, 3)
         Dωf = get_flux(ω_eqn, 4)
         Pω = get_source(ω_eqn, 1)
@@ -220,16 +266,13 @@ function turbulence!(
         grad!(∇ω, omegaf, omega, omega.BCs, time, config)
         grad!(∇k, kf, k, k.BCs, time, config)
         inner_product!(dkdomegadx, ∇k, ∇ω, config)
-        @. dkdomegadx.values = max((coeffs.σd / omega.values) * dkdomegadx.values, 0.0)
+        @. dkdomegadx.values = max((σd / omega.values) * dkdomegadx.values, 0.0)
     end
 
     @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
     @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
      (500 * nut.values) / (y.values^2 * omega.values)),
      (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
-    #endregion
-
-    # @. blnd_func.values = tanh(max((2 * sqrt(k.values)) / (βstar * omega.values * y.values), (500 * nut.values) / (y.values^2 * omega.values))^2)
 
     @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
 
@@ -259,10 +302,7 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
             ("omega", model.turbulence.omega),
             ("nut", model.turbulence.nut),
             ("y", model.turbulence.y),
-            ("F1", model.turbulence.blnd_func),
-            ("ransnut", model.turbulence.rans.nut),
-            ("lesnut", model.turbulence.les.nut),
-            ("Shield", model.turbulence.shield)
+            ("F1", model.turbulence.blnd_func)
         )
     end
     write_vtk(name, model.domain, VTKWriter, args...)
