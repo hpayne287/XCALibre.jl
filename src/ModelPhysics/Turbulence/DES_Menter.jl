@@ -52,7 +52,7 @@ Adapt.@adapt_structure MenterF1Model
 
 #Model Constructor using a RANS and LES model
 DES{MenterF1}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, walls,
-    C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
+    C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, σd=0.125, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
     rans = TurbModel1{Turb1}()
     # Construct LES turbulence
@@ -64,6 +64,7 @@ DES{MenterF1}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky
         σk2=σk2,
         σω1=σω1,
         σω2=σω2,
+        σd=σd,
         β1=β1,
         β2=β2,
         βstar=βstar,
@@ -120,8 +121,8 @@ end
     #     return -0.5 * (tanh(6*y-3.5)-1)
     # end
     #endregion
-    
-    for (i,val) in enumerate(y.values)
+
+    for (i, val) in enumerate(y.values)
         Cell = mesh.cells[i]
         ycell = Cell.centre[2]
         y.values[i] = ycell
@@ -195,8 +196,8 @@ function turbulence!(
     (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
 
-    @. rans.nut.values = nut.values;
-    @. les.nut.values = nut.values;
+    @. rans.nut.values = nut.values
+    @. les.nut.values = nut.values
 
     turbulence!(ransTurbModel, model, S, prev, time, config)
 
@@ -206,22 +207,29 @@ function turbulence!(
     nutLES = les.nut
 
     #region F1 Implementation attempt
-    # nueffω = get_flux(ω_eqn, 3)
-    # Dωf = get_flux(ω_eqn, 4)
-    # Pω = get_source(ω_eqn, 1)
-    # dkdomegadx = get_source(ω_eqn, 2)
+    if !(rans::KOmegaLKE)
+        nueffω = get_flux(ω_eqn, 3)
+        Dωf = get_flux(ω_eqn, 4)
+        Pω = get_source(ω_eqn, 1)
+        dkdomegadx = get_source(ω_eqn, 2)
 
-    # grad!(∇ω, omegaf, omega, omega.BCs, time, config)
-    # grad!(∇k, kf, k, k.BCs, time, config)
-    # inner_product!(dkdomegadx, ∇k, ∇ω, config)
+        interpolate!(kf, k, config)
+        correct_boundaries!(nutf, k, k.BCs, time, config)
+        interpolate!(omegaf, omega, config)
+        correct_boundaries!(nutf, omega, omega.BCs, time, config)
+        grad!(∇ω, omegaf, omega, omega.BCs, time, config)
+        grad!(∇k, kf, k, k.BCs, time, config)
+        inner_product!(dkdomegadx, ∇k, ∇ω, config)
+        @. dkdomegadx.values = max((coeffs.σd / omega.values) * dkdomegadx.values, 0.0)
+    end
 
-    # @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
-    # @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-    #  (500 * nut.values) / (y.values^2 * omega.values)),
-    #  (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
+    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
+    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
+     (500 * nut.values) / (y.values^2 * omega.values)),
+     (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
     #endregion
 
-    @. blnd_func.values = tanh(max((2 * sqrt(k.values))/(βstar * omega.values * y.values),(500*nut.values)/(y.values^2*omega.values))^2);
+    # @. blnd_func.values = tanh(max((2 * sqrt(k.values)) / (βstar * omega.values * y.values), (500 * nut.values) / (y.values^2 * omega.values))^2)
 
     @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
 
