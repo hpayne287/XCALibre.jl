@@ -162,4 +162,4 @@ initialise!(model.turbulence.nut, k_inlet/ω_inlet)
 
 residuals = run!(model, config); #, pref=0.0) # 9.39k allocs
 
-alert("Simulation done")
+alert("Simulation done");

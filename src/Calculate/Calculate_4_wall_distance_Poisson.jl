@@ -20,8 +20,9 @@ function wall_distance!(model, config)
     initialise!(phi, 0.0)
 
     phi_eqn = (
-        - Laplacian{schemes.y.laplacian}(phif, phi) == Source(ConstantScalar(1.0))
-    ) → ScalarEquation(mesh)
+        - Laplacian{schemes.y.laplacian}(phif, phi) 
+        == Source(ConstantScalar(1.0))
+    ) → ScalarEquation(phi)
 
     @reset phi_eqn.preconditioner = set_preconditioner(
         solvers.y.preconditioner, phi_eqn, phi.BCs, config)
@@ -68,8 +69,8 @@ end
     i = @index(Global)
 
     # y = ± Σⱼ₌₁,₃ (∂ϕ/∂xⱼ)² + Σⱼ₌₁,₃ (∂ϕ/∂xⱼ)² + 2ϕ
-    gradMag = norm(phiGrad.result[i])
-    ymin = (-gradMag + (gradMag^2 + 2*phi.values[i]))
-    ymax = (-gradMag - (gradMag^2 + 2*phi.values[i]))
-    y.values[i] = ymin+ymax
+    tot = (phiGrad.result.x[i]^2 + phiGrad.result.y[i]^2 + phiGrad.result.z[i]^2)
+    ymax = (-tot + (tot + 2*phi.values[i]))
+    ymin = (+tot + (tot + 2*phi.values[i]))
+    y.values[i] = ymax + ymin
 end
