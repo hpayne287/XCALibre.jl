@@ -56,7 +56,10 @@ DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, 
     rans = TurbModel1{Turb1}()
     # Construct LES turbulence
     les = TurbModel2{Turb2}()
-    # DES coefficients
+    #DES coefficients (These include any coefficients required by any sub models)
+    #If making a new RANS or LES model this list would needed to be added to to make it work
+    #Although now i think about it, once the turbulences are accessible through the model, this becomes useless?
+
     args = (
         C_DES=C_DES,
         σk1=σk1,
@@ -111,6 +114,7 @@ end
     # end
     # y = assign(y, BCs...)
 
+    #Dummy y values, fix for this expected soon from HM
     for (i, val) in enumerate(y.values)
         Cell = mesh.cells[i]
         ycell = Cell.centre[2]
@@ -151,7 +155,7 @@ Initialisation of turbulent transport equations
 """
 function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
 
-    @info "Initialising DES Menter Model..."
+    @info "Initialising Hybrid Framework..."
 
     (; k, omega, nut, y, kf, omegaf, rans, les) = model.turbulence
     (; solvers, schemes, runtime) = config
@@ -192,8 +196,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
 
     # wall_distance!(model, config)
 
+    #Create Turbulence models
     ransTurbModel = initialise(rans, model, mdotf, p_eqn, config)
-
     lesTurbModel = initialise(les, model, mdotf, p_eqn, config)
 
 
@@ -236,47 +240,28 @@ function turbulence!(
     des::HybridModel, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
 ) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
 
-    (; rho) = model.fluid
-    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y) = model.turbulence
-    (; βstar, σω2, σd, blending) = model.turbulence.coeffs
-    (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
+    (; nut, blnd_func, nutf, rans, les) = model.turbulence
+    (; blending) = model.turbulence.coeffs
     (; ransTurbModel, lesTurbModel) = des
 
-    @. rans.nut.values = nut.values
+    @. rans.nut.values = nut.values #this could be put into a seperate function maybe?
     @. les.nut.values = nut.values
 
     turbulence!(ransTurbModel, model, S, prev, time, config)
 
     turbulence!(lesTurbModel, model, S, prev, time, config)
 
-    nutRANS = rans.nut
-    nutLES = les.nut
     if blending == "MenterF1"
         if !(typeof(rans) == KOmegaLKE)
-            nueffω = get_flux(ω_eqn, 3)
-            Dωf = get_flux(ω_eqn, 4)
-            Pω = get_source(ω_eqn, 1)
-            dkdomegadx = get_source(ω_eqn, 2)
-
-            interpolate!(kf, k, config)
-            correct_boundaries!(nutf, k, k.BCs, time, config)
-            interpolate!(omegaf, omega, config)
-            correct_boundaries!(nutf, omega, omega.BCs, time, config)
-            grad!(∇ω, omegaf, omega, omega.BCs, time, config)
-            grad!(∇k, kf, k, k.BCs, time, config)
-            inner_product!(dkdomegadx, ∇k, ∇ω, config)
-            @. dkdomegadx.values = max((σd / omega.values) * dkdomegadx.values, 0.0)
+            cross_diffusion!(des, model, config)
         end
-
-        @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20)
-        @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-                (500 * nut.values) / (y.values^2 * omega.values)),
-            (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
-
-        @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
+        menterF1!(des, model)
     else
         println("Blending method not recognised!!")
+        return
     end
+
+    blend_nut!(nut,blnd_func,rans.nut,les.nut)
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
