@@ -1,6 +1,13 @@
-export menterF1!, cross_diffusion! , blend_nut!
+"""
+    menterF1!(des::HybridModel, model::Physics)
 
-function menterF1!(des, model)
+Set the values of the `blnd_func` field according to the Menter F1 equation
+
+### Input
+- `des` -- turbulence model.
+- `model` -- Physics model defined by user.
+"""
+function menterF1!(des::HybridModel, model::Physics)
     (; rho) = model.fluid
     (; k, omega, nut, blnd_func, CDkw, y) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
@@ -35,5 +42,4 @@ end
 
 function blend_nut!(nut,blend,nutRANS,nutLES)
     @. nut.values = (blend.values * nutRANS.values) + ((1 - blend.values) * nutLES.values)
-
 end

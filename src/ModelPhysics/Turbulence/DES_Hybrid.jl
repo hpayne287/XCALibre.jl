@@ -4,13 +4,13 @@ export Hybrid
 """
     Hybrid <: AbstractDESModel
 
-Menter model containing all Menter field parameters
+Hybrid model containing all Hybrid field parameters
 
 ### Fields
 - `k` -- Turbulent kinetic energy ScalarField.
 - `omega` -- Specific dissipation rate ScalarField.
 - `nut` -- Eddy viscosity ScalarField.
-- `blnd_func` -- Menter blending function ScalarField.
+- `blnd_func` -- blending function ScalarField.
 - `CDkw` -- Blending variable ScalarField
 - `kf` -- Turbulent kinetic energy FaceScalarField.
 - `omegaf` -- Specific dissipation rate FaceScalarField.
@@ -18,13 +18,13 @@ Menter model containing all Menter field parameters
 - `coeffs` -- Model coefficients.
 - `rans` -- Stores the RANS model for blending.
 - `les` -- Stores the LES model for blending.
-- `y` -- Near-wall distance for model.
+- `y` -- Wall normal distance for model.
 """
 struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
-    blnd_func::S4
+    blnd_func::S4 # I really dont like calling it this, its not a function and shouldnt be called one
     CDkw::S5
     kf::F1
     omegaf::F2
@@ -49,7 +49,7 @@ struct HybridModel{M1,M2,E1,S1,S2,S3,V1,V2,State}
 end
 Adapt.@adapt_structure HybridModel
 
-#Model Constructor using a RANS and LES model
+#Model Constructor 
 DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blending="MenterF1", walls,
     C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, σd=0.125, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
@@ -262,6 +262,8 @@ function turbulence!(
     end
 
     blend_nut!(nut,blnd_func,rans.nut,les.nut)
+
+    
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
