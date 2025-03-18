@@ -24,7 +24,7 @@ struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
-    blendWeight::S4 # I really dont like calling it this, its not a function and shouldnt be called one
+    blendWeight::S4
     CDkw::S5
     kf::F1
     omegaf::F2
@@ -50,16 +50,28 @@ end
 Adapt.@adapt_structure HybridModel
 
 #Model Constructor 
-DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blending="MenterF1", walls,
+"""
+    DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1, walls, args)
+
+Contruct a hybrid model
+
+### Inputs
+- `TurbModel1` -- Type of the first model, defaults to RANS
+- `TurbModel2` -- Type of the second model, defaults to LES
+- `Turb1` -- Turbulence model to be used in first model, defaults to KOmega
+- `Turb2` -- Turbulence model to be used in second model, defaults to Smagorinsky
+- `blendType` -- Blending method to be used, defaults to MenterF1
+- `walls` -- Required field holding all wall boundaries
+- Will also take values for any coefficients, all have default values
+"""
+DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1, walls,
     C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, σd=0.125, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
     rans = TurbModel1{Turb1}()
     # Construct LES turbulence
     les = TurbModel2{Turb2}()
-    #DES coefficients (These include any coefficients required by any sub models)
-    #If making a new RANS or LES model this list would needed to be added to to make it work
-    #Although now i think about it, once the turbulences are accessible through the model, this becomes useless?
-
+    #DES coefficients 
+    #THIS SHOULD BE THINNED OUT AFTER HP/FieldMoving is applied, each turbulenceModel will store their own kw args, specifying them might be hard though
     args = (
         C_DES=C_DES,
         σk1=σk1,
@@ -77,7 +89,7 @@ DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, 
         σk=σk,
         σω=σω,
         C=C,
-        blending=blending
+        blendType=blendType
     )
     ARG = typeof(args)
     DES{Hybrid,ARG}(rans, les, args)
@@ -241,29 +253,17 @@ function turbulence!(
 ) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
 
     (; nut, blendWeight, nutf, rans, les) = model.turbulence
-    (; blending) = model.turbulence.coeffs
+    (; blendType) = model.turbulence.coeffs
     (; ransTurbModel, lesTurbModel) = des
 
-    @. rans.nut.values = nut.values #this could be put into a seperate function maybe?
-    @. les.nut.values = nut.values
+    set_eddy_viscosity(model)
 
     turbulence!(ransTurbModel, model, S, prev, time, config)
-
     turbulence!(lesTurbModel, model, S, prev, time, config)
 
-    if blending == "MenterF1" #I think there is probably a cleaner way of doing this cant quite put my finger on it
-        if !(typeof(rans) == KOmegaLKE)
-            cross_diffusion!(des, model, config)
-        end
-        menterF1!(des, model)
-    else
-        println("Blending method not recognised!!")
-        return
-    end
+    blendType(des, model, config)
+    blend_nut!(nut, blendWeight, rans.nut, les.nut)
 
-    blend_nut!(nut,blendWeight,rans.nut,les.nut)
-
-    
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
