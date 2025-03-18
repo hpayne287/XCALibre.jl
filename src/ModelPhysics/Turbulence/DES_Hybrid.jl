@@ -1,8 +1,8 @@
-export MenterF1
+export Hybrid
 
 #Model type definition (hold fields)
 """
-    MenterF1 <: AbstractDESModel
+    Hybrid <: AbstractDESModel
 
 Menter model containing all Menter field parameters
 
@@ -20,7 +20,7 @@ Menter model containing all Menter field parameters
 - `les` -- Stores the LES model for blending.
 - `y` -- Near-wall distance for model.
 """
-struct MenterF1{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
+struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
@@ -33,11 +33,10 @@ struct MenterF1{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     rans::M1
     les::M2
     y::Y
-    shield
 end
-Adapt.@adapt_structure MenterF1
+Adapt.@adapt_structure Hybrid
 
-struct MenterF1Model{M1,M2,E1,S1,S2,S3,V1,V2,State}
+struct HybridModel{M1,M2,E1,S1,S2,S3,V1,V2,State}
     ransTurbModel::M1
     lesTurbModel::M2
     ω_eqn::E1
@@ -48,10 +47,10 @@ struct MenterF1Model{M1,M2,E1,S1,S2,S3,V1,V2,State}
     ∇ω::V2
     state::State
 end
-Adapt.@adapt_structure MenterF1Model
+Adapt.@adapt_structure HybridModel
 
 #Model Constructor using a RANS and LES model
-DES{MenterF1}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, walls,
+DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blending="MenterF1", walls,
     C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, σd=0.125, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
     rans = TurbModel1{Turb1}()
@@ -74,15 +73,16 @@ DES{MenterF1}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky
         α1=α1,
         σk=σk,
         σω=σω,
-        C=C
+        C=C,
+        blending=blending
     )
     ARG = typeof(args)
-    DES{MenterF1,ARG}(rans, les, args)
+    DES{Hybrid,ARG}(rans, les, args)
 end
 
 
 # Functor as constructor
-(des::DES{MenterF1,ARG})(mesh) where {ARG} = begin
+(des::DES{Hybrid,ARG})(mesh) where {ARG} = begin
     k = ScalarField(mesh)
     omega = ScalarField(mesh)
     nut = ScalarField(mesh)
@@ -94,7 +94,6 @@ end
     coeffs = des.args
     rans = des.rans(mesh)
     les = des.les(mesh)
-    shield = ScalarField(mesh)
     y = ScalarField(mesh)
 
 
@@ -112,16 +111,6 @@ end
     # end
     # y = assign(y, BCs...)
 
-
-    #region Dummy F1 Function
-    # δ = 0.01
-
-    # function f(y)
-    #     y = y/δ
-    #     return -0.5 * (tanh(6*y-3.5)-1)
-    # end
-    #endregion
-
     for (i, val) in enumerate(y.values)
         Cell = mesh.cells[i]
         ycell = Cell.centre[2]
@@ -129,12 +118,12 @@ end
     end
 
 
-    MenterF1(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y, shield)
+    Hybrid(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y)
 end
 
 #Model initialisation
 """
-    initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
+    initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
 
 Initialisation of turbulent transport equations 
 
@@ -147,7 +136,7 @@ Initialisation of turbulent transport equations
           hardware structures set.
 
 ### Output
-- `MenterF1Model(
+- `HybridModel(
         ransTurbModel,
         lesTurbModel,
         ω_eqn,
@@ -160,7 +149,7 @@ Initialisation of turbulent transport equations
     )` -- Turblence model structure
 
 """
-function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
+function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, p_eqn::ModelEquation, config)
 
     @info "Initialising DES Menter Model..."
 
@@ -212,15 +201,15 @@ function initialise(turbulence::MenterF1, model::Physics, mdotf::FaceScalarField
     init_convergence = false
     state = ModelState(init_residuals, init_convergence)
 
-    return MenterF1Model(
+    return HybridModel(
         ransTurbModel,
-        lesTurbModel, 
-        ω_eqn, 
-        nueffω, 
-        Dωf, 
-        Pω, 
-        ∇k, 
-        ∇ω, 
+        lesTurbModel,
+        ω_eqn,
+        nueffω,
+        Dωf,
+        Pω,
+        ∇k,
+        ∇ω,
         state
     )
 
@@ -229,13 +218,13 @@ end
 #Model solver call (implementation)
 """
     turbulence!(
-    des::MenterF1Model, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
+    des::HybridModel, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
     ) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
 
 Run turbulence model transport equations.
 
 ### Input
-- `des::MenterF1Model` -- MenterF1 turbulence model.
+- `des::HybridModel` -- Hybrid turbulence model.
 - `model`  -- Physics model defined by user.
 - `S`   -- Strain rate tensor.
 - `prev`  -- Previous field.
@@ -244,12 +233,12 @@ Run turbulence model transport equations.
               hardware structures set.
 """
 function turbulence!(
-    des::MenterF1Model, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
+    des::HybridModel, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
 ) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
 
     (; rho) = model.fluid
-    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y, shield) = model.turbulence
-    (; βstar, σω2, σd) = model.turbulence.coeffs
+    (; k, omega, nut, blnd_func, kf, omegaf, nutf, CDkw, rans, les, y) = model.turbulence
+    (; βstar, σω2, σd, blending) = model.turbulence.coeffs
     (; nueffω, Dωf, Pω, ω_eqn, ∇k, ∇ω) = des
     (; ransTurbModel, lesTurbModel) = des
 
@@ -262,30 +251,32 @@ function turbulence!(
 
     nutRANS = rans.nut
     nutLES = les.nut
+    if blending == "MenterF1"
+        if !(typeof(rans) == KOmegaLKE)
+            nueffω = get_flux(ω_eqn, 3)
+            Dωf = get_flux(ω_eqn, 4)
+            Pω = get_source(ω_eqn, 1)
+            dkdomegadx = get_source(ω_eqn, 2)
 
-    if !(typeof(rans) == KOmegaLKE)
-        nueffω = get_flux(ω_eqn, 3)
-        Dωf = get_flux(ω_eqn, 4)
-        Pω = get_source(ω_eqn, 1)
-        dkdomegadx = get_source(ω_eqn, 2)
+            interpolate!(kf, k, config)
+            correct_boundaries!(nutf, k, k.BCs, time, config)
+            interpolate!(omegaf, omega, config)
+            correct_boundaries!(nutf, omega, omega.BCs, time, config)
+            grad!(∇ω, omegaf, omega, omega.BCs, time, config)
+            grad!(∇k, kf, k, k.BCs, time, config)
+            inner_product!(dkdomegadx, ∇k, ∇ω, config)
+            @. dkdomegadx.values = max((σd / omega.values) * dkdomegadx.values, 0.0)
+        end
 
-        interpolate!(kf, k, config)
-        correct_boundaries!(nutf, k, k.BCs, time, config)
-        interpolate!(omegaf, omega, config)
-        correct_boundaries!(nutf, omega, omega.BCs, time, config)
-        grad!(∇ω, omegaf, omega, omega.BCs, time, config)
-        grad!(∇k, kf, k, k.BCs, time, config)
-        inner_product!(dkdomegadx, ∇k, ∇ω, config)
-        @. dkdomegadx.values = max((σd / omega.values) * dkdomegadx.values, 0.0)
+        @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20)
+        @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
+                (500 * nut.values) / (y.values^2 * omega.values)),
+            (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
+
+        @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
+    else
+        println("Blending method not recognised!!")
     end
-
-    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20);
-    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-     (500 * nut.values) / (y.values^2 * omega.values)),
-     (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4);
-
-    @. nut.values = (blnd_func.values * nutRANS.values) + ((1 - blnd_func.values) * nutLES.values)
-
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
@@ -294,26 +285,16 @@ end
 
 #Specialise VTK writer
 function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
-) where {T,F,M,Tu<:MenterF1,E,D,BI}
-    if typeof(model.fluid) <: AbstractCompressible
-        args = (
-            ("U", model.momentum.U),
-            ("p", model.momentum.p),
-            ("T", model.energy.T),
-            ("k", model.turbulence.k),
-            ("omega", model.turbulence.omega),
-            ("nut", model.turbulence.nut)
-        )
-    else
-        args = (
-            ("U", model.momentum.U),
-            ("p", model.momentum.p),
-            ("k", model.turbulence.k),
-            ("omega", model.turbulence.omega),
-            ("nut", model.turbulence.nut),
-            ("y", model.turbulence.y),
-            ("F1", model.turbulence.blnd_func)
-        )
-    end
+) where {T,F,M,Tu<:Hybrid,E,D,BI}
+
+    args = (
+        ("U", model.momentum.U),
+        ("p", model.momentum.p),
+        ("k", model.turbulence.k),
+        ("omega", model.turbulence.omega),
+        ("nut", model.turbulence.nut),
+        ("y", model.turbulence.y),
+        ("F1", model.turbulence.blnd_func)
+    )
     write_vtk(name, model.domain, VTKWriter, args...)
 end
