@@ -1,7 +1,7 @@
 """
     menterF1!(des::HybridModel, model::Physics)
 
-Set the values of the `blnd_func` field according to the Menter F1 equation
+Set the values of the `blendWeight` field according to the Menter F1 equation
 
 ### Input
 - `des` -- turbulence model.
@@ -9,14 +9,14 @@ Set the values of the `blnd_func` field according to the Menter F1 equation
 """
 function menterF1!(des::HybridModel, model::Physics)
     (; rho) = model.fluid
-    (; k, omega, nut, blnd_func, CDkw, y) = model.turbulence
+    (; k, omega, nut, blendWeight, CDkw, y) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
     (; ω_eqn) = des
 
     dkdomegadx = get_source(ω_eqn, 2)
 
     @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20)
-    @. blnd_func.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
+    @. blendWeight.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
             (500 * nut.values) / (y.values^2 * omega.values)),
         (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
 

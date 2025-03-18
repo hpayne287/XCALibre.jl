@@ -10,7 +10,7 @@ Hybrid model containing all Hybrid field parameters
 - `k` -- Turbulent kinetic energy ScalarField.
 - `omega` -- Specific dissipation rate ScalarField.
 - `nut` -- Eddy viscosity ScalarField.
-- `blnd_func` -- blending function ScalarField.
+- `blendWeight` -- blending weights ScalarField.
 - `CDkw` -- Blending variable ScalarField
 - `kf` -- Turbulent kinetic energy FaceScalarField.
 - `omegaf` -- Specific dissipation rate FaceScalarField.
@@ -24,7 +24,7 @@ struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
-    blnd_func::S4 # I really dont like calling it this, its not a function and shouldnt be called one
+    blendWeight::S4 # I really dont like calling it this, its not a function and shouldnt be called one
     CDkw::S5
     kf::F1
     omegaf::F2
@@ -89,7 +89,7 @@ end
     k = ScalarField(mesh)
     omega = ScalarField(mesh)
     nut = ScalarField(mesh)
-    blnd_func = ScalarField(mesh)
+    blendWeight = ScalarField(mesh)
     CDkw = ScalarField(mesh)
     kf = FaceScalarField(mesh)
     omegaf = FaceScalarField(mesh)
@@ -122,7 +122,7 @@ end
     end
 
 
-    Hybrid(k, omega, nut, blnd_func, CDkw, kf, omegaf, nutf, coeffs, rans, les, y)
+    Hybrid(k, omega, nut, blendWeight, CDkw, kf, omegaf, nutf, coeffs, rans, les, y)
 end
 
 #Model initialisation
@@ -240,7 +240,7 @@ function turbulence!(
     des::HybridModel, model::Physics{T,F,M,Tu,E,D,BI}, S, prev, time, config
 ) where {T,F,M,Tu<:AbstractTurbulenceModel,E,D,BI}
 
-    (; nut, blnd_func, nutf, rans, les) = model.turbulence
+    (; nut, blendWeight, nutf, rans, les) = model.turbulence
     (; blending) = model.turbulence.coeffs
     (; ransTurbModel, lesTurbModel) = des
 
@@ -251,7 +251,7 @@ function turbulence!(
 
     turbulence!(lesTurbModel, model, S, prev, time, config)
 
-    if blending == "MenterF1"
+    if blending == "MenterF1" #I think there is probably a cleaner way of doing this cant quite put my finger on it
         if !(typeof(rans) == KOmegaLKE)
             cross_diffusion!(des, model, config)
         end
@@ -261,7 +261,7 @@ function turbulence!(
         return
     end
 
-    blend_nut!(nut,blnd_func,rans.nut,les.nut)
+    blend_nut!(nut,blendWeight,rans.nut,les.nut)
 
     
     interpolate!(nutf, nut, config)
@@ -281,7 +281,7 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
         ("omega", model.turbulence.omega),
         ("nut", model.turbulence.nut),
         ("y", model.turbulence.y),
-        ("F1", model.turbulence.blnd_func)
+        ("F1", model.turbulence.blendWeight)
     )
     write_vtk(name, model.domain, VTKWriter, args...)
 end
