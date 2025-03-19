@@ -6,6 +6,7 @@ export AbstractDESModel, DES
 
 abstract type AbstractModelContainer end
 abstract type AbstractTurbulenceModel end
+abstract type AbstractBlendingMethod end
 abstract type AbstractRANSModel <: AbstractTurbulenceModel end
 abstract type AbstractLESModel <: AbstractTurbulenceModel end
 abstract type AbstractDESModel <: AbstractTurbulenceModel end
@@ -47,9 +48,12 @@ Abstract DES model type for constructing DES models.
 - 'les' -- The LES model (Physics struct)
 - 'args' -- Model arguments.
 """
-mutable struct DES{T, ARG} <: AbstractModelContainer
+struct DES{T, ARG} <: AbstractModelContainer
     rans
     les
     args::ARG 
 end
 Adapt.@adapt_structure DES
+
+struct MenterF1 <: AbstractBlendingMethod end
+Adapt.@adapt_structure MenterF1
