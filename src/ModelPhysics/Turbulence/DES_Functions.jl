@@ -31,7 +31,7 @@ function set_eddy_viscosity(model::Physics)
 end
 
 """
-    blend!(blendType, des::HybridModel, model::Physics, config)
+    update_blend_weights!(blendType, des::HybridModel, model::Physics, config)
 
 Set the values of `model.blendWeight` according to the method specified by `blendType`
 
@@ -42,9 +42,9 @@ Set the values of `model.blendWeight` according to the method specified by `blen
 - `config` -- Configuration structure defined by user with solvers, schemes, runtime and 
               hardware structures set.
 """
-function blend!() end #Dummy for documentation
+function update_blend_weights!() end #Dummy for documentation
 
-function blend!(blendType::MenterF1, des::HybridModel, model::Physics, config)
+function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Physics, config)
     (; rho) = model.fluid
     (; k, omega, nut, blendWeight, CDkw, y, rans) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
@@ -59,7 +59,7 @@ function blend!(blendType::MenterF1, des::HybridModel, model::Physics, config)
 
 end
 
-function blend!(blendType::MenterF2, des::HybridModel, model::Physics, config)
+function update_blend_weights!(blendType::MenterF2, des::HybridModel, model::Physics, config)
     (; k, omega, nut, blendWeight, y) = model.turbulence
     (; βstar) = model.turbulence.coeffs
 
