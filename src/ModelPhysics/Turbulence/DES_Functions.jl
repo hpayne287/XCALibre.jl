@@ -33,10 +33,10 @@ end
 """
     blend!(blendType, des::HybridModel, model::Physics, config)
 
-Set the values of the `blendWeight` field according to the method specified by `blendType`
+Set the values of `model.blendWeight` according to the method specified by `blendType`
 
 ### Input
-- `blendType` -- Blending method <: AbstractBlendingMethod
+- `blendType<: AbstractBlendingMethod` -- Blending method 
 - `des` -- turbulence model.
 - `model` -- Physics model defined by user.
 - `config` -- Configuration structure defined by user with solvers, schemes, runtime and 
@@ -57,6 +57,14 @@ function blend!(blendType::MenterF1, des::HybridModel, model::Physics, config)
             (500 * nut.values) / (y.values^2 * omega.values)),
         (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
 
+end
+
+function blend!(blendType::MenterF2, des::HybridModel, model::Physics, config)
+    (; k, omega, nut, blendWeight, y) = model.turbulence
+    (; βstar) = model.turbulence.coeffs
+
+    @. blendWeight.values = tanh(max(2 * sqrt(k.values) / (βstar * y.values * omega.values),
+            (500 * nut.values) / (y.values^2 * omega.values))^2)
 end
 
 function blend_nut!(nut, blend, nutRANS, nutLES)

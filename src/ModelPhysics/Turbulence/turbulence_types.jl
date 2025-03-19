@@ -1,5 +1,6 @@
 export AbstractModelContainer
 export AbstractTurbulenceModel
+export AbstractBlendingMethod, MenterF1, MenterF2
 export AbstractRANSModel, RANS
 export AbstractLESModel, LES
 export AbstractDESModel, DES
@@ -55,5 +56,10 @@ struct DES{T, ARG} <: AbstractModelContainer
 end
 Adapt.@adapt_structure DES
 
+
+#Define any blending method structs here
 struct MenterF1 <: AbstractBlendingMethod end
 Adapt.@adapt_structure MenterF1
+
+struct MenterF2 <: AbstractBlendingMethod end
+Adapt.@adapt_structure MenterF2
