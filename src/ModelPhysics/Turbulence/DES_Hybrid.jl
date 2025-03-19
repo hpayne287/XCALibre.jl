@@ -37,8 +37,8 @@ end
 Adapt.@adapt_structure Hybrid
 
 struct HybridModel{M1,M2,E1,S1,S2,S3,V1,V2,State}
-    ransTurbModel::M1
-    lesTurbModel::M2
+    ransModel::M1
+    lesModel::M2
     ω_eqn::E1
     nueffω::S1
     Dωf::S2
@@ -153,8 +153,8 @@ Initialisation of turbulent transport equations
 
 ### Output
 - `HybridModel(
-        ransTurbModel,
-        lesTurbModel,
+        ransModel,
+        lesModel,
         ω_eqn,
         nueffω,
         Dωf,
@@ -209,8 +209,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     wall_distance!(model, config)
 
     #Create Turbulence models
-    ransTurbModel = initialise(rans, model, mdotf, p_eqn, config)
-    lesTurbModel = initialise(les, model, mdotf, p_eqn, config)
+    ransModel = initialise(rans, model, mdotf, p_eqn, config)
+    lesModel = initialise(les, model, mdotf, p_eqn, config)
 
 
     init_residuals = (:k, 1.0), (:omega, 1.0)
@@ -218,8 +218,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     state = ModelState(init_residuals, init_convergence)
 
     return HybridModel(
-        ransTurbModel,
-        lesTurbModel,
+        ransModel,
+        lesModel,
         ω_eqn,
         nueffω,
         Dωf,
@@ -254,21 +254,20 @@ function turbulence!(
 
     (; nut, blendWeight, nutf, rans, les) = model.turbulence
     (; blendType) = model.turbulence.coeffs
-    (; ransTurbModel, lesTurbModel) = des
+    (; ransModel, lesModel) = des
 
     set_eddy_viscosity(model)
 
-    turbulence!(ransTurbModel, model, S, prev, time, config)
-    turbulence!(lesTurbModel, model, S, prev, time, config)
+    turbulence!(ransModel, model, S, prev, time, config)
+    turbulence!(lesModel, model, S, prev, time, config)
 
-    blend!(blendType,des,model,config)
+    blend!(blendType,des,model,config) #naming of functions needs some thought, not sure these are the easiest to follow
 
     blend_nut!(nut, blendWeight, rans.nut, les.nut)
 
     interpolate!(nutf, nut, config)
     correct_boundaries!(nutf, nut, nut.BCs, time, config)
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
-
 end
 
 #Specialise VTK writer
