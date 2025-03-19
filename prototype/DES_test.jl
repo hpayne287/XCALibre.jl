@@ -27,7 +27,7 @@ k_inlet = 0.05
 model = Physics(
     time=Steady(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:wall,)),
+    turbulence=DES{Hybrid}(walls=(:wall,),blendType=MenterF1()),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
