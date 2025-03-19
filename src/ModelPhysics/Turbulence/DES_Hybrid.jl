@@ -262,6 +262,8 @@ function turbulence!(
     turbulence!(lesTurbModel, model, S, prev, time, config)
 
     blendType(des, model, config)
+#blend(blendType,des,model,config)
+
     blend_nut!(nut, blendWeight, rans.nut, les.nut)
 
     interpolate!(nutf, nut, config)
