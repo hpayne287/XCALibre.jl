@@ -5,11 +5,11 @@ using XCALibre
 using Alert
 
 
-# grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
-# grid = "flatplate_2D_lowRe.unv"
-# mesh_file = joinpath(grids_dir, grid)
+grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
+grid = "flatplate_2D_lowRe.unv"
+mesh_file = joinpath(grids_dir, grid)
 
-mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-20-CircleMesh.unv"
+# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-20-FlatPlate.unv"
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 # Select backend and setup hardware
@@ -39,7 +39,7 @@ model = Physics(
     Neumann(:outlet, 0.0),
     Wall(:wall, [0.0, 0.0, 0.0]),
     Neumann(:top,0.0),
-    Neumann(:bottom,0.0)
+    # Neumann(:bottom,0.0)
 )
 
 @assign! model momentum p (
@@ -47,14 +47,14 @@ model = Physics(
     Dirichlet(:outlet, 0.0),
     Wall(:wall, 0.0),
     Neumann(:top,0.0),
-    Neumann(:bottom,0.0)
+    # Neumann(:bottom,0.0)
 )
 @assign! model turbulence k (
     Dirichlet(:inlet, k_inlet),
     Neumann(:outlet, 0.0),
     Dirichlet(:wall,0.0),
     Neumann(:top,0.0),
-    Neumann(:bottom,0.0)
+    # Neumann(:bottom,0.0)
 )
 
 @assign! model turbulence omega (
@@ -62,7 +62,7 @@ model = Physics(
     Neumann(:outlet, 0.0),
     OmegaWallFunction(:wall),
     Neumann(:top,0.0),
-    Neumann(:bottom,0.0)
+    # Neumann(:bottom,0.0)
 )
 
 @assign! model turbulence nut (
@@ -70,7 +70,7 @@ model = Physics(
     Neumann(:outlet, 0.0),
     Dirichlet(:wall,0.0),
     Neumann(:top,0.0),
-    Neumann(:bottom,0.0)
+    # Neumann(:bottom,0.0)
 )
 
 #endregion
@@ -128,7 +128,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=100, time_step=1, write_interval=1)
+runtime = set_runtime(iterations=10, time_step=1, write_interval=1)
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)

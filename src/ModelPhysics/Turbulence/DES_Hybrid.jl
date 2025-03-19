@@ -281,7 +281,9 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
         ("omega", model.turbulence.omega),
         ("nut", model.turbulence.nut),
         ("y", model.turbulence.y),
-        ("F1", model.turbulence.blendWeight)
+        ("F1", model.turbulence.blendWeight),
+        ("ransnut",model.turbulence.rans.nut),
+        ("lesnut",model.turbulence.les.nut)
     )
     write_vtk(name, model.domain, VTKWriter, args...)
 end
