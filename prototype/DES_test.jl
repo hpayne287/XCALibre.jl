@@ -5,11 +5,11 @@ using XCALibre
 using Alert
 
 
-grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
-grid = "flatplate_2D_lowRe.unv"
-mesh_file = joinpath(grids_dir, grid)
+# grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
+# grid = "flatplate_2D_lowRe.unv"
+# mesh_file = joinpath(grids_dir, grid)
 
-# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-25-BumpMesh2.unv"
+mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-20-CircleMesh.unv"
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 # Select backend and setup hardware
@@ -27,7 +27,7 @@ k_inlet = 0.05
 model = Physics(
     time=Steady(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:wall,),blendType=MenterF1()),
+    turbulence=DES{Hybrid}(walls=(:wall,)), #blendType=MenterF1()
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
@@ -38,34 +38,39 @@ model = Physics(
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
     Wall(:wall, [0.0, 0.0, 0.0]),
-    Neumann(:top,0.0)
+    Neumann(:top,0.0),
+    Neumann(:bottom,0.0)
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
-    Neumann(:wall, 0.0),
-    Neumann(:top,0.0)
+    Wall(:wall, 0.0),
+    Neumann(:top,0.0),
+    Neumann(:bottom,0.0)
 )
 @assign! model turbulence k (
     Dirichlet(:inlet, k_inlet),
     Neumann(:outlet, 0.0),
     Dirichlet(:wall,0.0),
-    Neumann(:top,0.0)
+    Neumann(:top,0.0),
+    Neumann(:bottom,0.0)
 )
 
 @assign! model turbulence omega (
     Dirichlet(:inlet, ω_inlet),
     Neumann(:outlet, 0.0),
     OmegaWallFunction(:wall),
-    Neumann(:top,0.0)
+    Neumann(:top,0.0),
+    Neumann(:bottom,0.0)
 )
 
 @assign! model turbulence nut (
     Dirichlet(:inlet, k_inlet / ω_inlet),
     Neumann(:outlet, 0.0),
     Dirichlet(:wall,0.0),
-    Neumann(:top,0.0)
+    Neumann(:top,0.0),
+    Neumann(:bottom,0.0)
 )
 
 #endregion
