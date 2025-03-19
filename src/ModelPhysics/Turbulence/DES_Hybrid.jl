@@ -51,7 +51,7 @@ Adapt.@adapt_structure HybridModel
 
 #Model Constructor 
 """
-    DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1, walls, args)
+    DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1(), walls, args)
 
 Contruct a hybrid model
 
@@ -64,7 +64,7 @@ Contruct a hybrid model
 - `walls` -- Required field holding all wall boundaries
 - Will also take values for any coefficients, all have default values
 """
-DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1, walls,
+DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1(), walls,
     C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, σd=0.125, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
     rans = TurbModel1{Turb1}()
@@ -261,8 +261,7 @@ function turbulence!(
     turbulence!(ransTurbModel, model, S, prev, time, config)
     turbulence!(lesTurbModel, model, S, prev, time, config)
 
-    blendType(des, model, config)
-#blend(blendType,des,model,config)
+    blend!(blendType,des,model,config)
 
     blend_nut!(nut, blendWeight, rans.nut, les.nut)
 
