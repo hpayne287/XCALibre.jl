@@ -113,25 +113,25 @@ end
 
 
     #create y values
-    # walls = des.args.walls
-    # BCs = []
-    # for boundary ∈ mesh.boundaries
-    #     for namedwall ∈ walls
-    #         if boundary.name == namedwall
-    #             push!(BCs, Dirichlet(boundary.name, 0.0))
-    #         else
-    #             push!(BCs, Neumann(boundary.name, 0.0))
-    #         end
-    #     end
-    # end
-    # y = assign(y, BCs...)
+    walls = des.args.walls
+    BCs = []
+    for boundary ∈ mesh.boundaries
+        for namedwall ∈ walls
+            if boundary.name == namedwall
+                push!(BCs, Dirichlet(boundary.name, 0.0))
+            else
+                push!(BCs, Wall(boundary.name, 0.0))
+            end
+        end
+    end
+    y = assign(y, BCs...)
 
     #Dummy y values, fix for this expected soon from HM
-    for (i, val) in enumerate(y.values)
-        Cell = mesh.cells[i]
-        ycell = Cell.centre[2]
-        y.values[i] = ycell
-    end
+    # for (i, val) in enumerate(y.values)
+    #     Cell = mesh.cells[i]
+    #     ycell = Cell.centre[2]
+    #     y.values[i] = ycell
+    # end
 
 
     Hybrid(k, omega, nut, blendWeight, CDkw, kf, omegaf, nutf, coeffs, rans, les, y)
@@ -206,7 +206,7 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     grad!(∇ω, omegaf, omega, omega.BCs, time, config)
     grad!(∇k, kf, k, k.BCs, time, config)
 
-    # wall_distance!(model, config)
+    wall_distance!(model, config)
 
     #Create Turbulence models
     ransTurbModel = initialise(rans, model, mdotf, p_eqn, config)
