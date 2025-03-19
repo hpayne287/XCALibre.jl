@@ -1,5 +1,3 @@
-# Hudson can you add your case test code here so I can help!
-
 using Plots
 using XCALibre
 using Alert
@@ -128,7 +126,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=10, time_step=1, write_interval=1)
+runtime = set_runtime(iterations=100, time_step=1, write_interval=1)
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)

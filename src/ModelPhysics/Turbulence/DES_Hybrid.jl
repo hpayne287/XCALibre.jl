@@ -212,6 +212,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     ransModel = initialise(rans, model, mdotf, p_eqn, config)
     lesModel = initialise(les, model, mdotf, p_eqn, config)
 
+    @. rans.k.values = k.values
+    @. rans.omega.values = omega.values
 
     init_residuals = (:k, 1.0), (:omega, 1.0)
     init_convergence = false
@@ -261,7 +263,7 @@ function turbulence!(
     turbulence!(ransModel, model, S, prev, time, config)
     turbulence!(lesModel, model, S, prev, time, config)
 
-    blend!(blendType,des,model,config) #naming of functions needs some thought, not sure these are the easiest to follow
+    update_blend_weights!(blendType,des,model,config) 
 
     blend_nut!(nut, blendWeight, rans.nut, les.nut)
 
@@ -281,9 +283,7 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
         ("omega", model.turbulence.omega),
         ("nut", model.turbulence.nut),
         ("y", model.turbulence.y),
-        ("F1", model.turbulence.blendWeight),
-        ("ransnut",model.turbulence.rans.nut),
-        ("lesnut",model.turbulence.les.nut)
+        ("F1", model.turbulence.blendWeight)
     )
     write_vtk(name, model.domain, VTKWriter, args...)
 end
