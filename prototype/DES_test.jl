@@ -1,14 +1,16 @@
-using Plots
+# using Plots
 using XCALibre
 using Alert
 
 
-grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
-grid = "flatplate_2D_lowRe.unv"
-mesh_file = joinpath(grids_dir, grid)
+# grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
+# grid1 = "flatplate_2D_lowRe.unv"
+# # grid1 = "bfs_unv_tet_10mm.unv"
+# mesh_file = joinpath(grids_dir, grid1)
 
-# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-02-20-FlatPlate.unv"
-mesh = UNV2D_mesh(mesh_file, scale=0.001)
+mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-03-21-JetFlow3D.unv"
+
+mesh = UNV3D_mesh(mesh_file, scale=0.001)
 
 # Select backend and setup hardware
 backend = CPU()
@@ -16,16 +18,17 @@ hardware = set_hardware(backend=backend, workgroup=32)
 
 mesh_dev = mesh
 
-velocity = [5.4, 0.0, 0.0]
-nu = 1.48e-5
-Re = 10 / nu
-k_inlet = 0.05
-ω_inlet = 275
+velocity = [0.0, 0.0, -0.5]
+noSlip = [0.0,0.0,0.0]
+nu = 1e-3
+Re = 23000
+k_inlet = 1
+ω_inlet = 1000
 
 model = Physics(
     time=Steady(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:wall,)), #blendType=MenterF1()
+    turbulence=DES{Hybrid}(walls=(:wall,)), #walls=(:wall,) blendType=MenterF1()
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
@@ -36,7 +39,8 @@ model = Physics(
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
     Wall(:wall, [0.0, 0.0, 0.0]),
-    Neumann(:top,0.0),
+    # Neumann(:top,0.0),
+    # Neumann(:side,0.0),
     # Neumann(:bottom,0.0)
 )
 
@@ -44,14 +48,16 @@ model = Physics(
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
     Wall(:wall, 0.0),
-    Neumann(:top,0.0),
+    # Neumann(:top,0.0),
+    # Neumann(:side,0.0),
     # Neumann(:bottom,0.0)
 )
 @assign! model turbulence k (
     Dirichlet(:inlet, k_inlet),
     Neumann(:outlet, 0.0),
     Dirichlet(:wall,0.0),
-    Neumann(:top,0.0),
+    # Neumann(:top,0.0),
+    # Neumann(:side,0.0),
     # Neumann(:bottom,0.0)
 )
 
@@ -59,7 +65,8 @@ model = Physics(
     Dirichlet(:inlet, ω_inlet),
     Neumann(:outlet, 0.0),
     OmegaWallFunction(:wall),
-    Neumann(:top,0.0),
+    # Neumann(:top,0.0),
+    # Neumann(:side,0.0),
     # Neumann(:bottom,0.0)
 )
 
@@ -67,7 +74,8 @@ model = Physics(
     Dirichlet(:inlet, k_inlet / ω_inlet),
     Neumann(:outlet, 0.0),
     Dirichlet(:wall,0.0),
-    Neumann(:top,0.0),
+    # Neumann(:top,0.0),
+    # Neumann(:side,0.0),
     # Neumann(:bottom,0.0)
 )
 
@@ -76,9 +84,10 @@ model = Physics(
 schemes = (
     U=set_schemes(divergence=Linear),
     p=set_schemes(),
+    y = set_schemes(gradient=Midpoint),
     k=set_schemes(gradient=Midpoint),
-    omega=set_schemes(gradient=Midpoint),
-    y = set_schemes(gradient=Midpoint)
+    omega=set_schemes(gradient=Midpoint)
+    
 )
 
 solvers = (
@@ -126,12 +135,14 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=100, time_step=1, write_interval=1)
+runtime = set_runtime(iterations=1000, time_step=1, write_interval=10)
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
 
-initialise!(model.momentum.U, velocity) 
+
+zeroV = [0.0,0.0,0.0]
+initialise!(model.momentum.U, zeroV) 
 initialise!(model.momentum.p, 0.0)
 initialise!(model.turbulence.k, k_inlet)
 initialise!(model.turbulence.omega, ω_inlet)
