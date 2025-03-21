@@ -30,6 +30,11 @@ function set_eddy_viscosity(model::Physics)
     @. les.nut.values = nut.values
 end
 
+function update_model_parameters!(model)
+    (;k,omega,rans,les) = model.turbulence
+    @. k.values = rans.k.values
+    @. omega.values = rans.omega.values
+end
 """
     update_blend_weights!(blendType, des::HybridModel, model::Physics, config)
 

@@ -126,14 +126,6 @@ end
     end
     y = assign(y, BCs...)
 
-    #Dummy y values, fix for this expected soon from HM
-    # for (i, val) in enumerate(y.values)
-    #     Cell = mesh.cells[i]
-    #     ycell = Cell.centre[2]
-    #     y.values[i] = ycell
-    # end
-
-
     Hybrid(k, omega, nut, blendWeight, CDkw, kf, omegaf, nutf, coeffs, rans, les, y)
 end
 
@@ -263,6 +255,7 @@ function turbulence!(
     turbulence!(ransModel, model, S, prev, time, config)
     turbulence!(lesModel, model, S, prev, time, config)
 
+    update_model_parameters!(model)
     update_blend_weights!(blendType,des,model,config) 
 
     blend_nut!(nut, blendWeight, rans.nut, les.nut)
