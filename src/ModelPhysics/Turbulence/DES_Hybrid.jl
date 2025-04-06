@@ -112,10 +112,11 @@ end
     y = ScalarField(mesh)
 
 
-    #create y values
+    # Allocate wall distance "y" and setup boundary conditions
     walls = des.args.walls
+    boundaries_cpu = get_boundaries(mesh.boundaries)
     BCs = []
-    for boundary ∈ mesh.boundaries
+    for boundary ∈ boundaries_cpu
         for namedwall ∈ walls
             if boundary.name == namedwall
                 push!(BCs, Dirichlet(boundary.name, 0.0))
@@ -265,8 +266,8 @@ function turbulence!(
     correct_eddy_viscosity!(nutf, nut.BCs, model, config)
 end
 
-#Specialise VTK writer
-function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
+#Specialise output writer
+function save_output(model::Physics{T,F,M,Tu,E,D,BI}, outputWriter, iteration
 ) where {T,F,M,Tu<:Hybrid,E,D,BI}
 
     args = (
@@ -278,5 +279,5 @@ function model2vtk(model::Physics{T,F,M,Tu,E,D,BI}, VTKWriter, name
         ("y", model.turbulence.y),
         ("blending_function", model.turbulence.blendWeight)
     )
-    write_vtk(name, model.domain, VTKWriter, args...)
+    write_results(iteration, model.domain, outputWriter, args...)
 end
