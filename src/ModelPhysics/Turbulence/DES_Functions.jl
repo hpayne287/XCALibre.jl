@@ -69,7 +69,7 @@ function update_blend_weights!(blendType::MenterF2, des::HybridModel, model::Phy
     (; βstar) = model.turbulence.coeffs
 
     @. blendWeight.values = tanh(max(2 * sqrt(k.values) / (βstar * y.values * omega.values),
-            (500 * nut.values) / (y.values^2 * omega.values))^2)
+            (500 * nu.values) / (y.values^2 * omega.values))^2)
 end
 
 function blend_nut!(nut, blend, nutRANS, nutLES)
