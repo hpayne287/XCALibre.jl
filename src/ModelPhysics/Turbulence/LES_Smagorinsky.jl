@@ -10,6 +10,9 @@ Smagorinsky LES model containing all Smagorinksy field parameters.
 - `nut` -- Eddy viscosity ScalarField.
 - `nutf` -- Eddy viscosity FaceScalarField.
 - `coeffs` -- Model coefficients.
+- `nut` -- Eddy viscosity ScalarField.
+- `nutf` -- Eddy viscosity FaceScalarField.
+- `coeffs` -- Model coefficients.
 
 """
 struct Smagorinsky{S1,S2,C} <: AbstractLESModel
