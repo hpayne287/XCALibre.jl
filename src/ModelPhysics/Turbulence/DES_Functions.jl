@@ -41,16 +41,16 @@ end
 Set the values of `model.blendWeight` according to the method specified by `blendType`
 
 ### Input
-- `blendType<: AbstractBlendingMethod` -- Blending method 
+- `blendType <: AbstractBlendingMethod` -- Blending method 
 - `des` -- turbulence model.
 - `model` -- Physics model defined by user.
 - `config` -- Configuration structure defined by user with solvers, schemes, runtime and 
               hardware structures set.
 """
-function update_blend_weights!() end #Dummy for documentation
+function update_blend_weights!(blendType, des, model, config) end #Dummy for documentation
 
 function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Physics, config)
-    (; rho) = model.fluid
+    (; rho, nu) = model.fluid
     (; k, omega, nut, blendWeight, CDkw, y, rans) = model.turbulence
     (; βstar, σω2) = model.turbulence.coeffs
     (; ω_eqn) = des
@@ -59,7 +59,7 @@ function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Phy
 
     @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20)
     @. blendWeight.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-            (500 * nut.values) / (y.values^2 * omega.values)),
+            (500 * nu.values) / (y.values^2 * omega.values)),
         (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
 
 end
