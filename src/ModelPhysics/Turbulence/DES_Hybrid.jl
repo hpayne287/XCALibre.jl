@@ -212,6 +212,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     init_convergence = false
     state = ModelState(init_residuals, init_convergence)
 
+    set_eddy_viscosity(model)
+    
     return HybridModel(
         ransModel,
         lesModel,
