@@ -15,7 +15,7 @@ end
     i = @index(Global)
 
     @uniform begin
-        p = 1/3
+        p = 1/2
         values = Δ.values
     end
 
