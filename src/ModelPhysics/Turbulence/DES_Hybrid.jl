@@ -20,7 +20,7 @@ Hybrid model containing all Hybrid field parameters
 - `les` -- Stores the LES model for blending.
 - `y` -- Wall normal distance for model.
 """
-struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y,D} <: AbstractDESModel
+struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
