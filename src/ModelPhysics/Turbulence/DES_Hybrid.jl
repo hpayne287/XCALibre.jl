@@ -20,7 +20,7 @@ Hybrid model containing all Hybrid field parameters
 - `les` -- Stores the LES model for blending.
 - `y` -- Wall normal distance for model.
 """
-struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
+struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y,D} <: AbstractDESModel
     k::S1
     omega::S2
     nut::S3
@@ -36,7 +36,7 @@ struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
 end
 Adapt.@adapt_structure Hybrid
 
-struct HybridModel{M1,M2,E1,S1,S2,S3,V1,V2,State}
+struct HybridModel{M1,M2,E1,S1,S2,S3,V1,D,V2,State}
     ransModel::M1
     lesModel::M2
     ω_eqn::E1
@@ -44,6 +44,7 @@ struct HybridModel{M1,M2,E1,S1,S2,S3,V1,V2,State}
     Dωf::S2
     Pω::S3
     ∇k::V1
+    Δ::D
     ∇ω::V2
     state::State
 end
@@ -173,6 +174,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     Pω = ScalarField(mesh)
     ∇k = Grad{schemes.k.gradient}(k)
     ∇ω = Grad{schemes.p.gradient}(omega)
+    Δ = ScalarField(mesh)
+    delta!(Δ, mesh, config)
 
     ω_eqn = (
         Time{schemes.omega.time}(omega)
@@ -222,6 +225,7 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
         Dωf,
         Pω,
         ∇k,
+        Δ,
         ∇ω,
         state
     )
