@@ -57,7 +57,7 @@ function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Phy
 
     dkdomegadx = get_cross_diff(rans,des,model,config)
 
-    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 10e-20)
+    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 1e-25)
     @. blendWeight.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
             (500 * nu.values) / (y.values^2 * omega.values)),
         (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
@@ -65,6 +65,7 @@ function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Phy
 end
 
 function update_blend_weights!(blendType::MenterF2, des::HybridModel, model::Physics, config)
+    (; nu) = model.fluid
     (; k, omega, nut, blendWeight, y) = model.turbulence
     (; βstar) = model.turbulence.coeffs
 
