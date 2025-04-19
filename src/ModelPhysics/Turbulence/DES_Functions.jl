@@ -1,4 +1,4 @@
-function get_cross_diff(rans,des,model,config)
+function get_cross_diff(rans, des, model, config)
     (; ω_eqn, ∇k, ∇ω) = des
     (; σd) = model.turbulence.coeffs
     (; k, omega, kf, omegaf, nutf) = model.turbulence
@@ -17,21 +17,21 @@ function get_cross_diff(rans,des,model,config)
     return dkdomegadx
 end
 
-function get_cross_diff(rans::KOmegaLKE,des,model,config)
+function get_cross_diff(rans::KOmegaLKE, des, model, config)
     (; ω_eqn) = rans
-    dkdomegadx = get_source(ω_eqn,2)
+    dkdomegadx = get_source(ω_eqn, 2)
 
     return dkdomegadx
 end
 
-function set_eddy_viscosity(model::Physics) 
+function set_eddy_viscosity(model::Physics)
     (; nut, rans, les) = model.turbulence
     @. rans.nut.values = nut.values
     @. les.nut.values = nut.values
 end
 
 function update_model_parameters!(model)
-    (;k,omega,rans,les) = model.turbulence
+    (; k, omega, rans, les) = model.turbulence
     @. k.values = rans.k.values
     @. omega.values = rans.omega.values
 end
@@ -55,7 +55,7 @@ function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Phy
     (; βstar, σω2, C_DES) = model.turbulence.coeffs
     (; Δ) = des
 
-    dkdomegadx = get_cross_diff(rans,des,model,config)
+    dkdomegadx = get_cross_diff(rans, des, model, config)
 
     @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 1e-25)
     @. blendWeight.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
@@ -71,17 +71,19 @@ function update_blend_weights!(blendType::MenterF2, des::HybridModel, model::Phy
     (; βstar) = model.turbulence.coeffs
 
     @. blendWeight.values = tanh(max(2 * sqrt(k.values) / (βstar * y.values * omega.values),
-            (500 * nu.values) / (y.values^2 * omega.values))^2)
+        (500 * nu.values) / (y.values^2 * omega.values))^2)
 end
 
 function blend_nut!(nut, blend, nutRANS, nutLES)
     @. nut.values = (blend.values * nutRANS.values) + ((1 - blend.values) * nutLES.values)
 end
 
-function match_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI}
-    (;rans,les,k,omega,nut) = model.turbulence
-    assign(rans.k,k.BCs)
-    assign(rans.omega,omega.BCs)
-    assign(rans.nut,nut.BCs)
-    assign(les.nut,nut.BCs)
+function apply_submodel_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI}
+    (; rans, les) = model.turbulence
+    (; kBC, ωBC, nutBC) = model.turbulence.coeffs
+    assign(rans.k, kBC...)
+    assign(rans.omega, ωBC...)
+    assign(rans.nut, nutBC...)
+    assign(les.nut, nutBC...)
+
 end
