@@ -43,8 +43,7 @@ Neumann(:top,0.0))
 model = Physics(
     time=Transient(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:plate,),blendType=MenterF1(),kBC=kBC,ωBC=ωBC,nutBC=nutBC), #walls=(:wall,) blendType=MenterF1()
-    # turbulence=RANS{KOmega}(),
+    turbulence=DES{Hybrid}(walls=(:plate,),blendType=MenterF1(),kBC=kBC,ωBC=ωBC,nutBC=nutBC),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
