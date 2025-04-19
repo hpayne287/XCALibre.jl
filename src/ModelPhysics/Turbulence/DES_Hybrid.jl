@@ -210,6 +210,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
 
     @. rans.k.values = k.values
     @. rans.omega.values = omega.values
+    match_BCs!(model)
+
 
     init_residuals = (:k, 1.0), (:omega, 1.0)
     init_convergence = false

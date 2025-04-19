@@ -77,3 +77,11 @@ end
 function blend_nut!(nut, blend, nutRANS, nutLES)
     @. nut.values = (blend.values * nutRANS.values) + ((1 - blend.values) * nutLES.values)
 end
+
+function match_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI}
+    (;rans,les,k,omega,nut) = model.turbulence
+    assign(rans.k,k.BCs)
+    assign(rans.omega,omega.BCs)
+    assign(rans.nut,nut.BCs)
+    assign(les.nut,nut.BCs)
+end
