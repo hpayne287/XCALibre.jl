@@ -78,7 +78,8 @@ function blend_nut!(nut, blend, nutRANS, nutLES)
     @. nut.values = (blend.values * nutRANS.values) + ((1 - blend.values) * nutLES.values)
 end
 
-function apply_submodel_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI} #This needs to be updated to allow for the use of other RANS or LES models but this works fine for K-ω and Smagorinsky
+#HP: I'd like this function not to output anything to the terminal but can't for the life of me work out how to without modifying assign... maybe I'll do that tbf
+function apply_submodel_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI} #HP: This needs to be updated to allow for the use of other RANS or LES models but this works fine for K-ω and Smagorinsky
     (; rans, les) = model.turbulence
     (; kBC, ωBC, nutBC) = model.turbulence.coeffs
 
