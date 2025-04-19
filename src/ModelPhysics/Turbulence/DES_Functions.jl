@@ -78,9 +78,12 @@ function blend_nut!(nut, blend, nutRANS, nutLES)
     @. nut.values = (blend.values * nutRANS.values) + ((1 - blend.values) * nutLES.values)
 end
 
-function apply_submodel_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI}
+function apply_submodel_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI} #This needs to be updated to allow for the use of other RANS or LES models but this works fine for K-ω and Smagorinsky
     (; rans, les) = model.turbulence
     (; kBC, ωBC, nutBC) = model.turbulence.coeffs
+
+    @info "Setting Submodel BCS"
+
     assign(rans.k, kBC...)
     assign(rans.omega, ωBC...)
     assign(rans.nut, nutBC...)
