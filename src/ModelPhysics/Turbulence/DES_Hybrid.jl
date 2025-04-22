@@ -153,8 +153,8 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     @info "Initialising Hybrid Framework..."
 
     (; rans, les) = model.turbulence
-    (; k, omega ) = rans
-    (; solvers, schemes, runtime) = config
+    (; k, omega, kf, omegaf ) = rans
+    (; schemes) = config
     mesh = mdotf.mesh
 
     ∇k = Grad{schemes.k.gradient}(k)        #Huge amount of this should be removed theres no 
