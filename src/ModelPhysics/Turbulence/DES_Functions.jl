@@ -1,9 +1,8 @@
 function get_cross_diff(rans, des, model, config)
-    (; ω_eqn, ∇k, ∇ω) = des
+    (; ∇k, ∇ω) = des
     (; σd) = model.turbulence.coeffs
-    (; k, omega, kf, omegaf, nutf) = model.turbulence
-
-    dkdomegadx = get_source(ω_eqn, 2)
+    (; nutf, crossdiff) = model.turbulence
+    (; k, omega, kf, omegaf) = rans
 
     interpolate!(kf, k, config)
     correct_boundaries!(nutf, k, k.BCs, time, config)
@@ -11,10 +10,10 @@ function get_cross_diff(rans, des, model, config)
     correct_boundaries!(nutf, omega, omega.BCs, time, config)
     grad!(∇ω, omegaf, omega, omega.BCs, time, config)
     grad!(∇k, kf, k, k.BCs, time, config)
-    inner_product!(dkdomegadx, ∇k, ∇ω, config)
-    @. dkdomegadx.values = max((σd / omega.values) * dkdomegadx.values, 0.0)
+    inner_product!(crossdiff, ∇k, ∇ω, config)
+    @. crossdiff.values = max((σd / omega.values) * crossdiff.values, 0.0)
 
-    return dkdomegadx
+    return crossdiff
 end
 
 function get_cross_diff(rans::KOmegaLKE, des, model, config)
@@ -51,13 +50,13 @@ function update_blend_weights!(blendType, des, model, config) end #Dummy for doc
 
 function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Physics, config)
     (; rho, nu) = model.fluid
-    (; k, omega, nut, blendWeight, CDkw, y, rans) = model.turbulence
+    (; blendWeight, CDkw, y, rans, crossdiff) = model.turbulence
+    (; k, omega) = rans
     (; βstar, σω2, C_DES) = model.turbulence.coeffs
-    (; Δ) = des
 
-    dkdomegadx = get_cross_diff(rans, des, model, config)
+    crossdiff = get_cross_diff(rans, des, model, config)
 
-    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * dkdomegadx.values), 1e-25)
+    @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * crossdiff.values), 1e-25)
     @. blendWeight.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
             (500 * nu.values) / (y.values^2 * omega.values)),
         (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
