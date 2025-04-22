@@ -61,7 +61,7 @@ function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Phy
     @. blendWeight.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
             (500 * nu.values) / (y.values^2 * omega.values)),
         (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
-    @. blendWeight.values = min(blendWeight.values, tanh((y.values / (C_DES * Δ.values))^2))
+    # @. blendWeight.values = min(blendWeight.values, tanh((y.values / (C_DES * Δ.values))^2))
 
 end
 
