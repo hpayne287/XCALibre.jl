@@ -20,31 +20,23 @@ Hybrid model containing all Hybrid field parameters
 - `les` -- Stores the LES model for blending.
 - `y` -- Wall normal distance for model.
 """
-struct Hybrid{S1,S2,S3,S4,S5,F1,F2,F3,C,M1,M2,Y} <: AbstractDESModel
-    k::S1
-    omega::S2
-    nut::S3
-    blendWeight::S4
-    CDkw::S5
-    kf::F1
-    omegaf::F2
-    nutf::F3
+struct Hybrid{S1,S2,S3,F1,C,M1,M2,Y} <: AbstractDESModel
+    nut::S1
+    blendWeight::S2
+    CDkw::S3
+    nutf::F1
     coeffs::C
     rans::M1
     les::M2
     y::Y
+    crossdiff
 end
 Adapt.@adapt_structure Hybrid
 
-struct HybridModel{M1,M2,E1,S1,S2,S3,V1,D,V2,State}
+struct HybridModel{M1,M2,V1,V2,State}
     ransModel::M1
     lesModel::M2
-    ω_eqn::E1
-    nueffω::S1
-    Dωf::S2
-    Pω::S3
     ∇k::V1
-    Δ::D
     ∇ω::V2
     state::State
 end
@@ -65,7 +57,7 @@ Contruct a hybrid model
 - `walls` -- Required field holding all wall boundaries
 - Will also take values for any coefficients, all have default values
 """
-DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1(), kBC, ωBC, nutBC, walls,
+DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, blendType=MenterF1(), walls,
     C_DES=0.65, σk1=0.85, σk2=1.00, σω1=0.65, σω2=0.856, σd=0.125, β1=0.075, β2=0.0828, βstar=0.09, a1=0.31, β⁺=0.09, α1=0.52, σk=0.5, σω=0.5, C=0.15) = begin
     # Construct RANS turbulence
     rans = TurbModel1{Turb1}()
@@ -91,9 +83,6 @@ DES{Hybrid}(; TurbModel1=RANS, Turb1=KOmega, TurbModel2=LES, Turb2=Smagorinsky, 
         σω=σω,
         C=C,
         blendType=blendType,
-        kBC,
-        ωBC,
-        nutBC
     )
     ARG = typeof(args)
     DES{Hybrid,ARG}(rans, les, args)
@@ -102,18 +91,15 @@ end
 
 # Functor as constructor
 (des::DES{Hybrid,ARG})(mesh) where {ARG} = begin
-    k = ScalarField(mesh)
-    omega = ScalarField(mesh)
     nut = ScalarField(mesh)
     blendWeight = ScalarField(mesh)
     CDkw = ScalarField(mesh)
-    kf = FaceScalarField(mesh)
-    omegaf = FaceScalarField(mesh)
     nutf = FaceScalarField(mesh)
     coeffs = des.args
     rans = des.rans(mesh)
     les = des.les(mesh)
     y = ScalarField(mesh)
+    crossdiff = ScalarField(mesh)
 
 
     # Allocate wall distance "y" and setup boundary conditions
@@ -131,7 +117,7 @@ end
     end
     y = assign(y, BCs...)
 
-    Hybrid(k, omega, nut, blendWeight, CDkw, kf, omegaf, nutf, coeffs, rans, les, y)
+    Hybrid(nut, blendWeight, CDkw, nutf, coeffs, rans, les, y, crossdiff)
 end
 
 #Model initialisation
@@ -166,39 +152,13 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
 
     @info "Initialising Hybrid Framework..."
 
-    (; k, omega, nut, y, kf, omegaf, rans, les) = model.turbulence
+    (; rans, les) = model.turbulence
+    (; k, omega ) = rans
     (; solvers, schemes, runtime) = config
     mesh = mdotf.mesh
-    eqn = p_eqn.equation
 
-    nueffω = FaceScalarField(mesh)
-    Dωf = ScalarField(mesh)
-    dkdomegadx = ScalarField(mesh)
-    Pω = ScalarField(mesh)
-    ∇k = Grad{schemes.k.gradient}(k)
+    ∇k = Grad{schemes.k.gradient}(k)        #Huge amount of this should be removed theres no 
     ∇ω = Grad{schemes.p.gradient}(omega)
-    Δ = ScalarField(mesh)
-    delta!(Δ, mesh, config)
-
-    ω_eqn = (
-        Time{schemes.omega.time}(omega)
-        +
-        Divergence{schemes.omega.divergence}(mdotf, omega)
-        -
-        Laplacian{schemes.omega.laplacian}(nueffω, omega)
-        +
-        Si(Dωf, omega)  # Dωf = β1*omega
-        ==
-        Source(Pω)
-        +
-        Source(dkdomegadx)
-    ) → eqn
-
-    @reset ω_eqn.preconditioner = set_preconditioner(
-        solvers.omega.preconditioner, ω_eqn, omega.BCs, config)
-
-
-    @reset ω_eqn.solver = solvers.omega.solver(_A(ω_eqn), _b(ω_eqn))
 
     TF = _get_float(mesh)
     time = zero(TF) # assuming time=0
@@ -211,10 +171,6 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     ransModel = initialise(rans, model, mdotf, p_eqn, config)
     lesModel = initialise(les, model, mdotf, p_eqn, config)
 
-    @. rans.k.values = k.values
-    @. rans.omega.values = omega.values
-    apply_submodel_BCs!(model)
-
 
     init_residuals = (:k, 1.0), (:omega, 1.0)
     init_convergence = false
@@ -225,12 +181,7 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     return HybridModel(
         ransModel,
         lesModel,
-        ω_eqn,
-        nueffω,
-        Dωf,
-        Pω,
         ∇k,
-        Δ,
         ∇ω,
         state
     )
@@ -267,7 +218,7 @@ function turbulence!(
     turbulence!(ransModel, model, S, prev, time, config)
     turbulence!(lesModel, model, S, prev, time, config)
 
-    update_model_parameters!(model)
+    # update_model_parameters!(model)
     update_blend_weights!(blendType, des, model, config)
 
     blend_nut!(nut, blendWeight, rans.nut, les.nut)
@@ -288,7 +239,8 @@ function save_output(model::Physics{T,F,M,Tu,E,D,BI}, outputWriter, iteration
         ("omega", model.turbulence.omega),
         ("nut", model.turbulence.nut),
         ("y", model.turbulence.y),
-        ("blending_function", model.turbulence.blendWeight)
+        ("blending_function", model.turbulence.blendWeight),
+        ("Cross diffusion", model.turbulence.crossdiff)
     )
     write_results(iteration, model.domain, outputWriter, args...)
 end
