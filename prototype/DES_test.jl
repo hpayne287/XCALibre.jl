@@ -2,11 +2,13 @@
 using XCALibre
 using Alert
 
+using Accessors
 
-# grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
-# grid1 = "flatplate_2D_lowRe.unv"
+
+grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
+grid1 = "flatplate_2D_lowRe.unv"
 # grid1 = "bfs_unv_tet_10mm.unv"
-# mesh_file = joinpath(grids_dir, grid1)
+mesh_file = joinpath(grids_dir, grid1)
 
 mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-20-Case20Mesh2D.unv"
 
@@ -35,7 +37,7 @@ Neumann(:top2,0.0))
 ωBC = (Dirichlet(:inlet, ω_inlet),
 Neumann(:outlet, 0.0),
 OmegaWallFunction(:plate1),
-OmegaWallFunctionWallFunction(:plate2),
+OmegaWallFunction(:plate2),
 Neumann(:top1,0.0),
 Neumann(:top2,0.0))
 
@@ -54,6 +56,28 @@ model = Physics(
     domain=mesh_dev
 )
 
+@assign! model turbulence nut (
+    Neumann(:inlet, 0.0),
+    Dirichlet(:outlet, 0.0),
+    Wall(:wall, 0.0),
+    Neumann(:top,0.0),
+)
+
+@assign! model turbulence.rans nut (
+    Neumann(:inlet, 0.0),
+    Dirichlet(:outlet, 0.0),
+    Wall(:wall, 0.0),
+    Neumann(:top,0.0),
+)
+
+# Example to modify/assign BCs for internal fields at API level
+modefiedNut = assign(model.turbulence.rans.nut,
+    Neumann(:inlet, 0.0),
+    Dirichlet(:outlet, 1000000.0),
+    Wall(:wall, 0.0),
+    Neumann(:top,0.0))
+
+@reset model.turbulence.rans.nut = modefiedNut
 
 #region Define BC
 @assign! model momentum U (
