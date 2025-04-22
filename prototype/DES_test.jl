@@ -10,7 +10,7 @@ grid1 = "flatplate_2D_lowRe.unv"
 # grid1 = "bfs_unv_tet_10mm.unv"
 mesh_file = joinpath(grids_dir, grid1)
 
-mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-20-Case20Mesh2D.unv"
+# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-20-Case20Mesh2D.unv"
 
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
@@ -27,81 +27,76 @@ nu = 1.5e-5
 k_inlet = 2.916e-5 
 ω_inlet = 3.1764 
 
-kBC = (Dirichlet(:inlet, k_inlet),
-Neumann(:outlet, 0.0),
-KWallFunction(:plate1),
-KWallFunction(:plate2),
-Neumann(:top1,0.0),
-Neumann(:top2,0.0))
+# kBC = (Dirichlet(:inlet, k_inlet),
+# Neumann(:outlet, 0.0),
+# KWallFunction(:plate1),
+# KWallFunction(:plate2),
+# Neumann(:top1,0.0),
+# Neumann(:top2,0.0))
 
-ωBC = (Dirichlet(:inlet, ω_inlet),
-Neumann(:outlet, 0.0),
-OmegaWallFunction(:plate1),
-OmegaWallFunction(:plate2),
-Neumann(:top1,0.0),
-Neumann(:top2,0.0))
+# ωBC = (Dirichlet(:inlet, ω_inlet),
+# Neumann(:outlet, 0.0),
+# OmegaWallFunction(:plate1),
+# OmegaWallFunction(:plate2),
+# Neumann(:top1,0.0),
+# Neumann(:top2,0.0))
 
-nutBC = (Dirichlet(:inlet, k_inlet/ω_inlet),
-Neumann(:outlet, 0.0),
-NutWallFunction(:plate1),
-NutWallFunction(:plate2),
-Neumann(:top1,0.0),
-Neumann(:top2,0.0))
+# nutBC = (Dirichlet(:inlet, k_inlet/ω_inlet),
+# Neumann(:outlet, 0.0),
+# NutWallFunction(:plate1),
+# NutWallFunction(:plate2),
+# Neumann(:top1,0.0),
+# Neumann(:top2,0.0))
 
 model = Physics(
     time=Transient(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:plate1,:plate2),blendType=MenterF1(),kBC=kBC,ωBC=ωBC,nutBC=nutBC),
+    turbulence=DES{Hybrid}(walls=(:plate1,:plate2),blendType=MenterF1()),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
+nutBCs = (Neumann(:inlet, 0.0),
+Dirichlet(:outlet, 0.0),
+Wall(:wall, 0.0),
+Neumann(:top,0.0))
 
-@assign! model turbulence nut (
-    Neumann(:inlet, 0.0),
-    Dirichlet(:outlet, 0.0),
-    Wall(:wall, 0.0),
-    Neumann(:top,0.0),
-)
 
-@assign! model turbulence.rans nut (
-    Neumann(:inlet, 0.0),
-    Dirichlet(:outlet, 0.0),
-    Wall(:wall, 0.0),
-    Neumann(:top,0.0),
-)
+@assign! model turbulence nut (nutBCs...)
 
 # Example to modify/assign BCs for internal fields at API level
-modefiedNut = assign(model.turbulence.rans.nut,
-    Neumann(:inlet, 0.0),
-    Dirichlet(:outlet, 1000000.0),
-    Wall(:wall, 0.0),
-    Neumann(:top,0.0))
+ransNut = assign(model.turbulence.rans.nut,nutBCS...)
+@reset model.turbulence.rans.nut = ransNut
 
-@reset model.turbulence.rans.nut = modefiedNut
+lesNut = assign(model.turbulence.les.nut, nutBCs...)
+@reset model.turbulence.les.nut = lesNut
 
 #region Define BC
 @assign! model momentum U (
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
-    Wall(:plate1, [0.0, 0.0, 0.0]),
-    Wall(:plate2, [0.0, 0.0, 0.0]),
-    Neumann(:top1,0.0),
-    Neumann(:top2,0.0),
+    Wall(:wall, [0.0, 0.0, 0.0]),
+    Neumann(:top,0.0),
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
-    Wall(:plate1, 0.0),
-    Wall(:plate2, 0.0),
-    Neumann(:top1,0.0),
-    Neumann(:top2,0.0),
+    Wall(:wall, 0.0),
+    Neumann(:top,0.0),
 )
-@assign! model turbulence k (kBC)
 
-@assign! model turbulence omega (ωBC)
+kcopy = assign(model.turbulence.rans.k, Neumann(:inlet, 0.0),
+Dirichlet(:outlet, 0.0),
+Wall(:wall, 0.0),
+Neumann(:top,0.0))
+@reset model.turbulence.rans.k = kcopy
 
-@assign! model turbulence nut (nutBC)
+ωcopy = assign(model.turbulence.rans.omega, Neumann(:inlet, 0.0),
+Dirichlet(:outlet, 0.0),
+Wall(:wall, 0.0),
+Neumann(:top,0.0))
+@reset model.turbulence.rans.omega = ωcopy
+
 #endregion
 
 schemes = (
