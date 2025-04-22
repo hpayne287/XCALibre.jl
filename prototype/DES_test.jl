@@ -8,7 +8,7 @@ using Alert
 # grid1 = "bfs_unv_tet_10mm.unv"
 # mesh_file = joinpath(grids_dir, grid1)
 
-mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-18-Case20Mesh2D.unv"
+mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-20-Case20Mesh2D.unv"
 
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
@@ -22,28 +22,34 @@ velocity = [5.4, 0.0, 0.0]
 noSlip = [0.0,0.0,0.0]
 nu = 1.5e-5
 # Re = 23000
-k_inlet = 2.38e-8 #3/2*(Tu*u_mag)^2
-ω_inlet = 15.88 #k_inlet/(nuR*nu)
+k_inlet = 2.916e-5 
+ω_inlet = 3.1764 
 
 kBC = (Dirichlet(:inlet, k_inlet),
 Neumann(:outlet, 0.0),
-KWallFunction(:plate),
-Neumann(:top,0.0))
+KWallFunction(:plate1),
+KWallFunction(:plate2),
+Neumann(:top1,0.0),
+Neumann(:top2,0.0))
 
 ωBC = (Dirichlet(:inlet, ω_inlet),
 Neumann(:outlet, 0.0),
-Dirichlet(:plate, 1.0e12),
-Neumann(:top,0.0))
+OmegaWallFunction(:plate1),
+OmegaWallFunctionWallFunction(:plate2),
+Neumann(:top1,0.0),
+Neumann(:top2,0.0))
 
 nutBC = (Dirichlet(:inlet, k_inlet/ω_inlet),
 Neumann(:outlet, 0.0),
-NutWallFunction(:plate),
-Neumann(:top,0.0))
+NutWallFunction(:plate1),
+NutWallFunction(:plate2),
+Neumann(:top1,0.0),
+Neumann(:top2,0.0))
 
 model = Physics(
     time=Transient(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:plate,),blendType=MenterF1(),kBC=kBC,ωBC=ωBC,nutBC=nutBC),
+    turbulence=DES{Hybrid}(walls=(:plate1,:plate2),blendType=MenterF1(),kBC=kBC,ωBC=ωBC,nutBC=nutBC),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
@@ -53,15 +59,19 @@ model = Physics(
 @assign! model momentum U (
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
-    Wall(:plate, [0.0, 0.0, 0.0]),
-    Neumann(:top,0.0),
+    Wall(:plate1, [0.0, 0.0, 0.0]),
+    Wall(:plate2, [0.0, 0.0, 0.0]),
+    Neumann(:top1,0.0),
+    Neumann(:top2,0.0),
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
-    Wall(:plate, 0.0),
-    Neumann(:top,0.0),
+    Wall(:plate1, 0.0),
+    Wall(:plate2, 0.0),
+    Neumann(:top1,0.0),
+    Neumann(:top2,0.0),
 )
 @assign! model turbulence k (kBC)
 
@@ -124,7 +134,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=4000, time_step=0.00003, write_interval=100) #Adjust timestep to get a decent courant value
+runtime = set_runtime(iterations=1, time_step=0.0000001, write_interval=1) #Adjust timestep to get a decent courant value
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
@@ -135,7 +145,7 @@ initialise!(model.momentum.U, velocity)
 initialise!(model.momentum.p, 0.0)
 initialise!(model.turbulence.k, k_inlet)
 initialise!(model.turbulence.omega, ω_inlet)
-initialise!(model.turbulence.nut, k_inlet/ω_inlet)
+initialise!(model.turbulence.nut, 0.0)
 
 residuals = run!(model, config);
 
