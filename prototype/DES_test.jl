@@ -51,7 +51,7 @@ k_inlet = 2.916e-5
 model = Physics(
     time=Transient(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:plate1,:plate2),blendType=MenterF1()),
+    turbulence=DES{Hybrid}(walls=(:wall,),blendType=MenterF1()),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
@@ -61,10 +61,15 @@ Wall(:wall, 0.0),
 Neumann(:top,0.0))
 
 
-@assign! model turbulence nut (nutBCs...)
+@assign! model turbulence nut (
+    Neumann(:inlet, 0.0),
+    Dirichlet(:outlet, 0.0),
+    Wall(:wall, 0.0),
+    Neumann(:top,0.0)
+)
 
 # Example to modify/assign BCs for internal fields at API level
-ransNut = assign(model.turbulence.rans.nut,nutBCS...)
+ransNut = assign(model.turbulence.rans.nut,nutBCs...)
 @reset model.turbulence.rans.nut = ransNut
 
 lesNut = assign(model.turbulence.les.nut, nutBCs...)
@@ -136,7 +141,7 @@ solvers = (
         itmax = 2000
     ),
     k = set_solver(
-        model.turbulence.k;
+        model.turbulence.rans.k;
         solver      = BicgstabSolver, # BicgstabSolver, GmresSolver
         preconditioner = Jacobi(),
         convergence = 1e-8,
@@ -144,7 +149,7 @@ solvers = (
         rtol = 1e-2,
     ),
     omega = set_solver(
-        model.turbulence.omega;
+        model.turbulence.rans.omega;
         solver      = BicgstabSolver, # BicgstabSolver, GmresSolver
         preconditioner = Jacobi(),
         convergence = 1e-8,
@@ -162,9 +167,11 @@ config = Configuration(
 zeroV = [0.0,0.0,0.0]
 initialise!(model.momentum.U, velocity) 
 initialise!(model.momentum.p, 0.0)
-initialise!(model.turbulence.k, k_inlet)
-initialise!(model.turbulence.omega, ω_inlet)
+initialise!(model.turbulence.rans.k, k_inlet)
+initialise!(model.turbulence.rans.omega, ω_inlet)
 initialise!(model.turbulence.nut, 0.0)
+initialise!(model.turbulence.rans.nut, 0.0)
+initialise!(model.turbulence.les.nut, 0.0)
 
 residuals = run!(model, config);
 
