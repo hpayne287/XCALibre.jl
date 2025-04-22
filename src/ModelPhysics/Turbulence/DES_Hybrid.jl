@@ -235,8 +235,8 @@ function save_output(model::Physics{T,F,M,Tu,E,D,BI}, outputWriter, iteration
     args = (
         ("U", model.momentum.U),
         ("p", model.momentum.p),
-        ("k", model.turbulence.k),
-        ("omega", model.turbulence.omega),
+        ("k", model.turbulence.rans.k),
+        ("omega", model.turbulence.rans.omega),
         ("nut", model.turbulence.nut),
         ("y", model.turbulence.y),
         ("blending_function", model.turbulence.blendWeight),
