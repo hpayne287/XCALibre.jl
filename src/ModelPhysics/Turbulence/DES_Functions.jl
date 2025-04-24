@@ -50,23 +50,25 @@ function update_blend_weights!(blendType, des, model, config) end #Dummy for doc
 
 function update_blend_weights!(blendType::MenterF1, des::HybridModel, model::Physics, config)
     (; rho, nu) = model.fluid
-    (; blendWeight, CDkw, y, rans, crossdiff) = model.turbulence
+    (; blendWeight, CDkw, term1,term2,term3, y, rans, crossdiff) = model.turbulence
     (; k, omega) = rans
     (; βstar, σω2, C_DES) = model.turbulence.coeffs
 
     crossdiff = get_cross_diff(rans, des, model, config)
 
     @. CDkw.values = max((2 * rho.values * σω2 * (1 / omega.values) * crossdiff.values), 1e-25)
-    @. blendWeight.values = tanh(min(max(sqrt(k.values) / (βstar * y.values * omega.values),
-            (500 * nu.values) / (y.values^2 * omega.values)),
-        (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2))^4)
-    # @. blendWeight.values = min(blendWeight.values, tanh((y.values / (C_DES * Δ.values))^2))
+    @. term1.values = sqrt(k.values) / (βstar * y.values * omega.values)
+    @. term2.values = (500 * nu.values) / (y.values^2 * omega.values)
+    @. term3.values = (4 * rho.values * σω2 * k.values) / (CDkw.values * y.values^2)
+    @. blendWeight.values = tanh(min(max(term1.values,term2.values),term3.values)^4)
+
 
 end
 
 function update_blend_weights!(blendType::MenterF2, des::HybridModel, model::Physics, config)
     (; nu) = model.fluid
-    (; k, omega, nut, blendWeight, y) = model.turbulence
+    (; blendWeight,rans, y) = model.turbulence
+    (; k, omega) = rans
     (; βstar) = model.turbulence.coeffs
 
     @. blendWeight.values = tanh(max(2 * sqrt(k.values) / (βstar * y.values * omega.values),
@@ -75,18 +77,4 @@ end
 
 function blend_nut!(nut, blend, nutRANS, nutLES)
     @. nut.values = (blend.values * nutRANS.values) + ((1 - blend.values) * nutLES.values)
-end
-
-#HP: I'd like this function not to output anything to the terminal but can't for the life of me work out how to without modifying assign... maybe I'll do that tbf
-function apply_submodel_BCs!(model::Physics{T,F,M,Tu,E,D,BI}) where {T,F,M,Tu<:Hybrid,E,D,BI} #HP: This needs to be updated to allow for the use of other RANS or LES models but this works fine for K-ω and Smagorinsky
-    (; rans, les) = model.turbulence
-    (; kBC, ωBC, nutBC) = model.turbulence.coeffs
-
-    @info "Setting Submodel BCS"
-
-    assign(rans.k, kBC...)
-    assign(rans.omega, ωBC...)
-    assign(rans.nut, nutBC...)
-    assign(les.nut, nutBC...)
-
 end
