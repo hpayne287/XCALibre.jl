@@ -20,33 +20,18 @@ hardware = set_hardware(backend=backend, workgroup=32)
 
 mesh_dev = mesh
 
-velocity = [5.4, 0.0, 0.0]
+U_mag = 5.4
+L = 1.7
+velocity = [U_mag, 0.0, 0.0]
 noSlip = [0.0,0.0,0.0]
 nu = 1.5e-5
+Tu = 0.03
+
 # Re = 23000
-k_inlet = 2.916e-5 
-ω_inlet = 3.1764 
-
-# kBC = (Dirichlet(:inlet, k_inlet),
-# Neumann(:outlet, 0.0),
-# KWallFunction(:plate1),
-# KWallFunction(:plate2),
-# Neumann(:top1,0.0),
-# Neumann(:top2,0.0))
-
-# ωBC = (Dirichlet(:inlet, ω_inlet),
-# Neumann(:outlet, 0.0),
-# OmegaWallFunction(:plate1),
-# OmegaWallFunction(:plate2),
-# Neumann(:top1,0.0),
-# Neumann(:top2,0.0))
-
-# nutBC = (Dirichlet(:inlet, k_inlet/ω_inlet),
-# Neumann(:outlet, 0.0),
-# NutWallFunction(:plate1),
-# NutWallFunction(:plate2),
-# Neumann(:top1,0.0),
-# Neumann(:top2,0.0))
+k_inlet = 3/2*(Tu*U_mag)^2
+# ω_inlet = (k_inlet^0.5)/(0.09^0.25)*L
+ω_inlet = 1000
+nut∞ = 1e-15 
 
 model = Physics(
     time=Transient(),
@@ -55,16 +40,18 @@ model = Physics(
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
-nutBCs = (Neumann(:inlet, 0.0),
-Dirichlet(:outlet, 0.0),
-Wall(:wall, 0.0),
-Neumann(:top,0.0))
+nutBCs = (
+    Dirichlet(:inlet, k_inlet/ω_inlet),
+    Neumann(:outlet, 0.0),
+    Dirichlet(:wall, 0.0),
+    Neumann(:top,0.0)
+)
 
 
 @assign! model turbulence nut (
-    Neumann(:inlet, 0.0),
-    Dirichlet(:outlet, 0.0),
-    Wall(:wall, 0.0),
+    Dirichlet(:inlet, k_inlet/ω_inlet),
+    Neumann(:outlet, 0.0),
+    Dirichlet(:wall, 0.0),
     Neumann(:top,0.0)
 )
 
@@ -79,26 +66,28 @@ lesNut = assign(model.turbulence.les.nut, nutBCs...)
 @assign! model momentum U (
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
-    Wall(:wall, [0.0, 0.0, 0.0]),
+    Dirichlet(:wall, [0.0, 0.0, 0.0]),
     Neumann(:top,0.0),
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
-    Wall(:wall, 0.0),
+    Neumann(:wall, 0.0),
     Neumann(:top,0.0),
 )
 
-kcopy = assign(model.turbulence.rans.k, Neumann(:inlet, 0.0),
-Dirichlet(:outlet, 0.0),
-Wall(:wall, 0.0),
+kcopy = assign(model.turbulence.rans.k, 
+Dirichlet(:inlet, k_inlet),
+Neumann(:outlet, 0.0),
+Dirichlet(:wall, 0.0),
 Neumann(:top,0.0))
 @reset model.turbulence.rans.k = kcopy
 
-ωcopy = assign(model.turbulence.rans.omega, Neumann(:inlet, 0.0),
-Dirichlet(:outlet, 0.0),
-Wall(:wall, 0.0),
+ωcopy = assign(model.turbulence.rans.omega, 
+Dirichlet(:inlet, ω_inlet),
+Neumann(:outlet, 0.0),
+Dirichlet(:wall, 1e7),
 Neumann(:top,0.0))
 @reset model.turbulence.rans.omega = ωcopy
 
@@ -158,7 +147,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=1, time_step=0.0000001, write_interval=1) #Adjust timestep to get a decent courant value
+runtime = set_runtime(iterations=100000, time_step=0.00004, write_interval=10) #Adjust timestep to get a decent courant value
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
@@ -169,9 +158,9 @@ initialise!(model.momentum.U, velocity)
 initialise!(model.momentum.p, 0.0)
 initialise!(model.turbulence.rans.k, k_inlet)
 initialise!(model.turbulence.rans.omega, ω_inlet)
-initialise!(model.turbulence.nut, 0.0)
-initialise!(model.turbulence.rans.nut, 0.0)
-initialise!(model.turbulence.les.nut, 0.0)
+initialise!(model.turbulence.nut, nut∞)
+initialise!(model.turbulence.rans.nut, nut∞)
+initialise!(model.turbulence.les.nut, nut∞)
 
 residuals = run!(model, config);
 
