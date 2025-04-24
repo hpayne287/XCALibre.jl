@@ -30,6 +30,9 @@ struct Hybrid{S1,S2,S3,F1,C,M1,M2,Y} <: AbstractDESModel
     les::M2
     y::Y
     crossdiff
+    term1
+    term2
+    term3
 end
 Adapt.@adapt_structure Hybrid
 
@@ -100,6 +103,9 @@ end
     les = des.les(mesh)
     y = ScalarField(mesh)
     crossdiff = ScalarField(mesh)
+    term1 = ScalarField(mesh)
+    term2 = ScalarField(mesh)
+    term3 = ScalarField(mesh)
 
 
     # Allocate wall distance "y" and setup boundary conditions
@@ -117,7 +123,7 @@ end
     end
     y = assign(y, BCs...)
 
-    Hybrid(nut, blendWeight, CDkw, nutf, coeffs, rans, les, y, crossdiff)
+    Hybrid(nut, blendWeight, CDkw, nutf, coeffs, rans, les, y, crossdiff, term1,term2,term3)
 end
 
 #Model initialisation
@@ -175,8 +181,6 @@ function initialise(turbulence::Hybrid, model::Physics, mdotf::FaceScalarField, 
     init_residuals = (:k, 1.0), (:omega, 1.0)
     init_convergence = false
     state = ModelState(init_residuals, init_convergence)
-
-    set_eddy_viscosity(model)
 
     return HybridModel(
         ransModel,
@@ -240,7 +244,9 @@ function save_output(model::Physics{T,F,M,Tu,E,D,BI}, outputWriter, iteration
         ("nut", model.turbulence.nut),
         ("y", model.turbulence.y),
         ("blending_function", model.turbulence.blendWeight),
-        ("Cross diffusion", model.turbulence.crossdiff)
+        ("term1", model.turbulence.term1),
+        ("term2", model.turbulence.term2),
+        ("term3", model.turbulence.term3)
     )
     write_results(iteration, model.domain, outputWriter, args...)
 end
