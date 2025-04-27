@@ -246,7 +246,9 @@ function save_output(model::Physics{T,F,M,Tu,E,D,BI}, outputWriter, iteration
         ("blending_function", model.turbulence.blendWeight),
         ("term1", model.turbulence.term1),
         ("term2", model.turbulence.term2),
-        ("term3", model.turbulence.term3)
+        ("term3", model.turbulence.term3),
+        ("ransnut", model.turbulence.rans.nut),
+        ("lesnut", model.turbulence.les.nut)
     )
     write_results(iteration, model.domain, outputWriter, args...)
 end
