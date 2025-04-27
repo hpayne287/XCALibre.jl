@@ -5,12 +5,12 @@ using Alert
 using Accessors
 
 
-grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
-grid1 = "flatplate_2D_lowRe.unv"
-# grid1 = "bfs_unv_tet_10mm.unv"
-mesh_file = joinpath(grids_dir, grid1)
+# grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
+# grid1 = "flatplate_2D_lowRe.unv"
+# # grid1 = "bfs_unv_tet_10mm.unv"
+# mesh_file = joinpath(grids_dir, grid1)
 
-# mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-20-Case20Mesh2D.unv"
+mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-24-Case20Mesh2D.unv"
 
 mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
@@ -36,23 +36,25 @@ nut∞ = 1e-15
 model = Physics(
     time=Transient(),
     fluid=Fluid{Incompressible}(nu=nu),
-    turbulence=DES{Hybrid}(walls=(:wall,),blendType=MenterF1()),
+    turbulence=DES{Hybrid}(walls=(:plate,),blendType=MenterF1()),
     energy=Energy{Isothermal}(),
     domain=mesh_dev
 )
 nutBCs = (
     Dirichlet(:inlet, k_inlet/ω_inlet),
     Neumann(:outlet, 0.0),
-    Dirichlet(:wall, 0.0),
-    Neumann(:top,0.0)
+    Dirichlet(:plate, 0.0),
+    Neumann(:top,0.0),
+    Symmetry(:preplate)
 )
 
 
 @assign! model turbulence nut (
     Dirichlet(:inlet, k_inlet/ω_inlet),
     Neumann(:outlet, 0.0),
-    Dirichlet(:wall, 0.0),
-    Neumann(:top,0.0)
+    Dirichlet(:plate, 0.0),
+    Neumann(:top,0.0),
+    Symmetry(:preplate)
 )
 
 # Example to modify/assign BCs for internal fields at API level
@@ -66,29 +68,33 @@ lesNut = assign(model.turbulence.les.nut, nutBCs...)
 @assign! model momentum U (
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
-    Dirichlet(:wall, [0.0, 0.0, 0.0]),
+    Dirichlet(:plate, [0.0, 0.0, 0.0]),
     Neumann(:top,0.0),
+    Symmetry(:preplate)
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
-    Dirichlet(:outlet, 0.0),
-    Neumann(:wall, 0.0),
+    Neumann(:outlet, 0.0),
+    Neumann(:plate, 0.0),
     Neumann(:top,0.0),
+    Symmetry(:preplate)
 )
 
 kcopy = assign(model.turbulence.rans.k, 
 Dirichlet(:inlet, k_inlet),
 Neumann(:outlet, 0.0),
-Dirichlet(:wall, 0.0),
-Neumann(:top,0.0))
+Dirichlet(:plate, 0.0),
+Neumann(:top,0.0),
+Symmetry(:preplate))
 @reset model.turbulence.rans.k = kcopy
 
 ωcopy = assign(model.turbulence.rans.omega, 
 Dirichlet(:inlet, ω_inlet),
 Neumann(:outlet, 0.0),
-Dirichlet(:wall, 1e7),
-Neumann(:top,0.0))
+Dirichlet(:plate, 1e7),
+Neumann(:top,0.0),
+Symmetry(:preplate))
 @reset model.turbulence.rans.omega = ωcopy
 
 #endregion
@@ -147,7 +153,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=100000, time_step=0.00004, write_interval=10) #Adjust timestep to get a decent courant value
+runtime = set_runtime(iterations=6000, time_step=0.00002, write_interval=10) #Adjust timestep to get a decent courant value
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
