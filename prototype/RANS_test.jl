@@ -10,7 +10,7 @@ using Accessors
 # # grid1 = "bfs_unv_tet_10mm.unv"
 # mesh_file = joinpath(grids_dir, grid1)
 
-mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-23-Case20Mesh3D2.unv"
+mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-26-Case31Mesh3D.unv"
 
 mesh = UNV3D_mesh(mesh_file, scale=0.001)
 
@@ -42,7 +42,7 @@ model = Physics(
 @assign! model turbulence nut (
     Dirichlet(:inlet, k_inlet/ω_inlet),
     Neumann(:outlet, 0.0),
-    Dirichlet(:plate, 0.0),
+    Dirichlet(:wall, 0.0),
     Neumann(:top,0.0),
     Neumann(:left,0.0),
     Neumann(:right,0.0),
@@ -51,36 +51,43 @@ model = Physics(
 @assign! model momentum U (
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
-    Dirichlet(:plate, [0.0, 0.0, 0.0]),
+    Dirichlet(:wall, [0.0, 0.0, 0.0]),
     Neumann(:top,0.0),
+    Neumann(:left,0.0),
+    Neumann(:right,0.0),
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
-    Neumann(:plate, 0.0),
+    Neumann(:wall, 0.0),
     Neumann(:top,0.0),
+    Neumann(:left,0.0),
+    Neumann(:right,0.0),
 )
 
 @assign! model turbulence k (
     Dirichlet(:inlet, k_inlet),
     Neumann(:outlet, 0.0),
-    Dirichlet(:plate, 0.0),
-    Neumann(:top,0.0)
+    Dirichlet(:wall, 0.0),
+    Neumann(:top,0.0),
+    Neumann(:left,0.0),
+    Neumann(:right,0.0),
 )
 
 @assign! model turbulence omega (
     Dirichlet(:inlet, 0.000737),
     Neumann(:outlet, 0.0),
-    Dirichlet(:plate, 1e20),
-    Neumann(:top,0.0)
+    Dirichlet(:wall, 1e20),
+    Neumann(:top,0.0),
+    Neumann(:left,0.0),
+    Neumann(:right,0.0),
 )
 
 
 schemes = (
     U=set_schemes(divergence=Linear,time=Euler),
     p=set_schemes(time=Euler),
-    # y = set_schemes(gradient=Midpoint,time=Euler),
     k=set_schemes(gradient=Midpoint,time=Euler),
     omega=set_schemes(gradient=Midpoint,time=Euler)
     
@@ -105,14 +112,6 @@ solvers = (
         rtol=1e-4,
         atol=1e-10
     ),
-    # y = set_solver(
-    #     model.turbulence.y;
-    #     solver      = CgSolver, # BicgstabSolver, GmresSolver
-    #     preconditioner = Jacobi(),
-    #     convergence = 1e-8,
-    #     relax       = 0.9,
-    #     itmax = 2000
-    # ),
     k = set_solver(
         model.turbulence.k;
         solver      = BicgstabSolver, # BicgstabSolver, GmresSolver
@@ -131,7 +130,7 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=4000, time_step=0.00007, write_interval=10) #Adjust timestep to get a decent courant value
+runtime = set_runtime(iterations=4000, time_step=0.000001, write_interval=10) #Adjust timestep to get a decent courant value
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
@@ -143,9 +142,5 @@ initialise!(model.momentum.p, 0.0)
 initialise!(model.turbulence.k, k_inlet)
 initialise!(model.turbulence.omega, ω_inlet)
 initialise!(model.turbulence.nut, k_inlet/ω_inlet)
-# initialise!(model.turbulence.rans.nut, k_inlet/ω_inlet)
-# initialise!(model.turbulence.les.nut, k_inlet/ω_inlet)
 
 residuals = run!(model, config);
-
-# alert("Simulation Done!!");
