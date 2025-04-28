@@ -1,10 +1,10 @@
 # using Plots
 using XCALibre
 using Alert
-
+using StaticArrays
 using Accessors
 
-mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-27-Case31Mesh3D.unv"
+mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-28-Case31Mesh3D.unv"
 
 mesh = UNV3D_mesh(mesh_file, scale=0.001)
 
@@ -35,6 +35,27 @@ model = Physics(
     domain=mesh_dev
 )
 
+function blasius_inlet(coords, time, index)
+    U∞ = 5.4        
+    ν = 1.5e-5       
+    x_virtual = 1      
+    y = coords[2]  - 0.0094
+    
+    y= max(y,0.0)
+
+    # Blasius similarity variable
+    η = y * sqrt(U∞ / (2 * ν * x_virtual))
+
+    # Blasius function approximation (f' = u/U∞)
+    f_prime = tanh(η / 2.6)  
+
+    # Velocity components
+    ux = U∞ * f_prime      
+    uy = 0.0               
+    uz = 0.0               
+
+    return SVector{3}(ux, uy, uz)
+end
 
 nutBCs = (
     Dirichlet(:inlet, k_inlet/ω_inlet),
@@ -62,7 +83,7 @@ lesNut = assign(model.turbulence.les.nut, nutBCs...)
 
 #region Define BC
 @assign! model momentum U (
-    Dirichlet(:inlet, velocity),
+    DirichletFunction(:inlet, blasius_inlet),
     Neumann(:outlet, 0.0),
     Dirichlet(:wall, [0.0, 0.0, 0.0]),
     Neumann(:top,0.0),
@@ -160,7 +181,7 @@ runtime = set_runtime(iterations=10000, time_step=0.000001, write_interval=10)
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
 
-initialise!(model.momentum.U, velocity) 
+initialise!(model.momentum.U, [0.0,0.0,0.0]) 
 initialise!(model.momentum.p, 0.0)
 initialise!(model.turbulence.rans.k, k_inlet)
 initialise!(model.turbulence.rans.omega, ω_inlet)
