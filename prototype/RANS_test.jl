@@ -5,14 +5,9 @@ using Alert
 using Accessors
 
 
-# grids_dir = pkgdir(XCALibre, "examples/0_GRIDS")
-# grid1 = "flatplate_2D_lowRe.unv"
-# # grid1 = "bfs_unv_tet_10mm.unv"
-# mesh_file = joinpath(grids_dir, grid1)
+mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-05-02-Case31Mesh2D.unv"
 
-mesh_file = "C:/Users/Hudson/OneDrive - The University of Nottingham/Year 3/Individual Project/Code/Meshes/2025-04-26-Case31Mesh3D.unv"
-
-mesh = UNV3D_mesh(mesh_file, scale=0.001)
+mesh = UNV2D_mesh(mesh_file, scale=0.001)
 
 # Select backend and setup hardware
 backend = CPU()
@@ -20,17 +15,21 @@ hardware = set_hardware(backend=backend, workgroup=32)
 
 mesh_dev = mesh
 
-U_mag = 5.4
-L = 1.7
+Re_h = 5100
+nu = 1.5e-5
+h = 0.1
+U_mag = Re_h*nu/h
+
 velocity = [U_mag, 0.0, 0.0]
 noSlip = [0.0,0.0,0.0]
-nu = 1.5e-5
+
 Tu = 0.03
 
-# Re = 23000
-k_inlet = 3/2*(Tu*U_mag)^2
-ω_inlet = (k_inlet^0.5)/(0.09^0.25)*L
 
+k_inlet = 3/2*(Tu*U_mag)^2
+# ω_inlet = (k_inlet^0.5)/(0.09^0.25)*L
+ω_inlet = 1000
+nut∞ = 1e-15 
 model = Physics(
     time=Transient(),
     fluid=Fluid{Incompressible}(nu=nu),
@@ -42,46 +41,59 @@ model = Physics(
 @assign! model turbulence nut (
     Dirichlet(:inlet, k_inlet/ω_inlet),
     Neumann(:outlet, 0.0),
-    Dirichlet(:wall, 0.0),
+    Dirichlet(:wall1, 0.0),
+    Dirichlet(:wall2, 0.0),
+    Dirichlet(:side, 0.0),
     Neumann(:top,0.0),
-    Neumann(:left,0.0),
-    Neumann(:right,0.0),
+    # Neumann(:left, 0.0),
+    # Neumann(:right, 0.0)
 )
 
+#region Define BC
 @assign! model momentum U (
+    # DirichletFunction(:inlet, blasius_inlet),
     Dirichlet(:inlet, velocity),
     Neumann(:outlet, 0.0),
-    Dirichlet(:wall, [0.0, 0.0, 0.0]),
+    Dirichlet(:wall1, [0.0, 0.0, 0.0]),
+    Dirichlet(:wall2, [0.0, 0.0, 0.0]),
+    Dirichlet(:side, [0.0, 0.0, 0.0]),
+    # Dirichlet(:top, [0.0, 0.0, 0.0]),
     Neumann(:top,0.0),
-    Neumann(:left,0.0),
-    Neumann(:right,0.0),
+    # Neumann(:left, 0.0),
+    # Neumann(:right, 0.0)
 )
 
 @assign! model momentum p (
     Neumann(:inlet, 0.0),
     Dirichlet(:outlet, 0.0),
-    Neumann(:wall, 0.0),
-    Neumann(:top,0.0),
-    Neumann(:left,0.0),
-    Neumann(:right,0.0),
+    Neumann(:wall1, 0.0),
+    Neumann(:wall2, 0.0),
+    Neumann(:side, 0.0),
+    Dirichlet(:top,0.0),
+    # Neumann(:left, 0.0),
+    # Neumann(:right, 0.0)
 )
 
 @assign! model turbulence k (
-    Dirichlet(:inlet, k_inlet),
-    Neumann(:outlet, 0.0),
-    Dirichlet(:wall, 0.0),
-    Neumann(:top,0.0),
-    Neumann(:left,0.0),
-    Neumann(:right,0.0),
+Dirichlet(:inlet, k_inlet),
+Neumann(:outlet, 0.0),
+Dirichlet(:wall1, 0.0),
+Dirichlet(:wall2, 0.0),
+Dirichlet(:side, 0.0),
+Neumann(:top,0.0),
+# Neumann(:left, 0.0),
+# Neumann(:right, 0.0)
 )
 
-@assign! model turbulence omega (
-    Dirichlet(:inlet, 0.000737),
-    Neumann(:outlet, 0.0),
-    Dirichlet(:wall, 1e20),
-    Neumann(:top,0.0),
-    Neumann(:left,0.0),
-    Neumann(:right,0.0),
+@assign! model turbulence omega ( 
+Dirichlet(:inlet, ω_inlet),
+Neumann(:outlet, 0.0),
+Dirichlet(:wall1, 1e6),
+Dirichlet(:wall2, 1e6),
+Dirichlet(:side, 1e6),
+Neumann(:top,0.0),
+# Neumann(:left, 0.0),
+# Neumann(:right, 0.0)
 )
 
 
@@ -130,14 +142,14 @@ solvers = (
     )
 )
 
-runtime = set_runtime(iterations=4000, time_step=0.000001, write_interval=10) #Adjust timestep to get a decent courant value
+runtime = set_runtime(iterations=10000, time_step=0.00005, write_interval=10) 
 
 config = Configuration(
     solvers=solvers, schemes=schemes, runtime=runtime, hardware=hardware)
 
 
 zeroV = [0.0,0.0,0.0]
-initialise!(model.momentum.U, velocity) 
+initialise!(model.momentum.U, zeroV) 
 initialise!(model.momentum.p, 0.0)
 initialise!(model.turbulence.k, k_inlet)
 initialise!(model.turbulence.omega, ω_inlet)
